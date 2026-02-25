@@ -1,0 +1,44 @@
+# Node / Javascript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Web App Build output
+dist/
+build/
+.next/
+.output/
+.vercel/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+venv/
+.venv/
+env/
+/apps/api/venv/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor & OS Files
+.vscode/
+.idea/
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+structure.txt
+*.log
+*.db
+*.sqlite3
