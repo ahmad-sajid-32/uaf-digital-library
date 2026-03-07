@@ -1,0 +1,26 @@
+{
+  "name": "uaf-digital-library",
+  "version": "1.0.0",
+  "description": "This is the repository for the UAF Digital Library project. It is a monorepo containing the backend API, a web application (in development), and database migrations.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:api": "cd /d .\\apps\\api && .\\venv\\Scripts\\python.exe -m uvicorn main:app --reload",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev": "concurrently -k -n api,web \"npm run dev:api\" \"npm run dev:web\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmad-sajid-32/uaf-digital-library.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/ahmad-sajid-32/uaf-digital-library/issues"
+  },
+  "homepage": "https://github.com/ahmad-sajid-32/uaf-digital-library#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

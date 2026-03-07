@@ -11,6 +11,8 @@ build/
 .next/
 .output/
 .vercel/
+.turbo/
+.cache/
 coverage/
 
 # Python
@@ -20,6 +22,11 @@ __pycache__/
 *.pyd
 *.egg-info/
 *.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
 venv/
 .venv/
 env/

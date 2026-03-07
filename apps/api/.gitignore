@@ -19,6 +19,7 @@ dist/
 # Instance folders
 .idea/
 .vscode/
+app.log
 *.log
 *.db
 *.sqlite3

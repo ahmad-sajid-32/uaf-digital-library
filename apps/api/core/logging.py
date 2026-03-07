@@ -7,7 +7,7 @@ Purpose:
 - Enforce JSON-only structured logging.
 - Provide consistent log schema across all modules.
 - Support contextual metadata via `extra={}`.
-- Output logs to stdout (Render-compatible).
+- Output logs to stdout and local file storage.
 - Prevent duplicate handlers.
 - Respect environment-driven log level.
 
@@ -15,7 +15,7 @@ Architectural Role:
 FastAPI → core.logging → global structured logging → observability pipeline.
 
 Design Decisions:
-- No file logging (containerized deployment).
+- File logging is written to apps/api/app.log.
 - No wrapper logger classes.
 - No message mutation.
 - Root logger configured once at startup.
@@ -26,9 +26,13 @@ import json
 import logging
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict
 
 from core.config import settings
+
+
+LOG_FILE_PATH = Path(__file__).resolve().parents[1] / "app.log"
 
 
 class StructuredJSONFormatter(logging.Formatter):
@@ -81,7 +85,7 @@ def configure_logging() -> None:
     This function:
     - Sets global log level from environment.
     - Clears existing handlers (important during reload).
-    - Attaches JSON formatter to stdout.
+    - Attaches JSON formatter to stdout and apps/api/app.log.
     - Silences noisy third-party loggers.
 
     Must be called once during FastAPI startup.
@@ -97,6 +101,10 @@ def configure_logging() -> None:
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(StructuredJSONFormatter())
     root_logger.addHandler(stream_handler)
+
+    file_handler = logging.FileHandler(LOG_FILE_PATH, encoding="utf-8")
+    file_handler.setFormatter(StructuredJSONFormatter())
+    root_logger.addHandler(file_handler)
 
     # Silence overly verbose libraries unless debugging
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
