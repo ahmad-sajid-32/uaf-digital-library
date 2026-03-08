@@ -124,6 +124,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         Public routes:
         - /health (always public)
         - GET /api/books (public catalog read)
+        - GET /api/public/result (public LMS result lookup)
         - Swagger routes (only in non-production environments)
         """
 
@@ -136,6 +137,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         # Public book catalog read
         if method == "GET" and path == "/api/books":
+            return True
+
+        # Public LMS result lookup
+        if method == "GET" and path == "/api/public/result":
             return True
 
         # Swagger & OpenAPI (allowed only outside production)
@@ -201,7 +206,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         )
         return JSONResponse(
             status_code=401,
-            content={"detail": message},
+            content={
+                "status": 401,
+                "message": message,
+                "data": {},
+                "timestamp_ms": int(time.time() * 1000),
+            },
         )
 
     def _forbidden(self, message: str, request_id: str) -> JSONResponse:
@@ -211,5 +221,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         )
         return JSONResponse(
             status_code=403,
-            content={"detail": message},
+            content={
+                "status": 403,
+                "message": message,
+                "data": {},
+                "timestamp_ms": int(time.time() * 1000),
+            },
         )

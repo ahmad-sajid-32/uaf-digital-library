@@ -34,6 +34,18 @@ from core.middleware import AuthenticationMiddleware
 
 from modules.books.routes import router as books_router
 from modules.auth.routes import router as auth_router
+from modules.queue.routes import router as queue_router
+from modules.borrow.routes import router as borrow_router
+from modules.me.routes import router as me_router
+from modules.fines.routes import router as fines_router
+from modules.admin_fines.routes import router as admin_fines_router
+from modules.admin_metrics.routes import router as admin_metrics_router
+from modules.results.routes import (
+    public_router as public_results_router,
+    router as results_router,
+)
+from modules.documents.routes import router as documents_router
+from modules.ai.routes import router as ai_router
 
 
 # --------------------------------------------------
@@ -105,6 +117,16 @@ app.add_middleware(AuthenticationMiddleware)
 
 app.include_router(books_router)
 app.include_router(auth_router)
+app.include_router(queue_router)
+app.include_router(borrow_router)
+app.include_router(me_router)
+app.include_router(fines_router)
+app.include_router(admin_fines_router)
+app.include_router(admin_metrics_router)
+app.include_router(results_router)
+app.include_router(public_results_router)
+app.include_router(documents_router)
+app.include_router(ai_router)
 
 
 # --------------------------------------------------
@@ -121,10 +143,10 @@ def build_error_response(
 
     Structure:
     {
-        "status_code": int,
+        "status": int,
         "message": str,
-        "timestamp_ms": int,
-        "request_id": str
+        "data": {},
+        "timestamp_ms": int
     }
     """
 
@@ -142,10 +164,10 @@ def build_error_response(
     return JSONResponse(
         status_code=status_code,
         content={
-            "status_code": status_code,
+            "status": status_code,
             "message": message,
+            "data": {},
             "timestamp_ms": int(time.time() * 1000),
-            "request_id": request_id,
         },
     )
 
@@ -199,6 +221,11 @@ async def health() -> Dict[str, Any]:
     """
 
     return {
-        "status": "ok",
-        "environment": settings.environment,
+        "status": 200,
+        "message": "Health check successful",
+        "data": {
+            "service_status": "ok",
+            "environment": settings.environment,
+        },
+        "timestamp_ms": int(time.time() * 1000),
     }

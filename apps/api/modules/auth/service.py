@@ -8,6 +8,7 @@ Responsibilities:
 - Propagate role via app_metadata.
 - Insert role-specific metadata into library tables.
 - Generate password recovery link.
+- Execute admin profile-management RPCs.
 - Return structured creation result.
 
 Architectural Constraints:
@@ -17,9 +18,11 @@ Architectural Constraints:
 - Uses SUPABASE_SERVICE_ROLE_KEY securely.
 """
 
-import httpx
+from typing import Any, Dict
 from uuid import UUID
-from typing import Dict, Any
+
+import asyncpg
+import httpx
 
 from core.config import settings
 from core.database import Database
@@ -252,3 +255,71 @@ class AuthService:
             role="ADMIN",
             password_setup_required=True,
         )
+
+    @staticmethod
+    async def admin_update_profile(
+        admin_id: str,
+        target_user_id: UUID,
+        full_name: str,
+    ) -> None:
+        """
+        Update a target user's full name through PostgreSQL RPC.
+        """
+
+        pool = Database.get_pool()
+
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "select set_config('request.jwt.claim.sub', $1, true)",
+                    admin_id,
+                )
+                await conn.execute(
+                    "select library.admin_update_profile($1::uuid, $2::text)",
+                    target_user_id,
+                    full_name,
+                )
+        except asyncpg.PostgresError as exc:
+            logger.error(
+                "AUTH: admin update profile RPC failed",
+                extra={
+                    "admin_id": admin_id,
+                    "target_user_id": str(target_user_id),
+                    "sqlstate": exc.sqlstate,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError(str(exc)) from exc
+
+    @staticmethod
+    async def admin_delete_user(
+        admin_id: str,
+        target_user_id: UUID,
+    ) -> None:
+        """
+        Delete a target user through PostgreSQL RPC.
+        """
+
+        pool = Database.get_pool()
+
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "select set_config('request.jwt.claim.sub', $1, true)",
+                    admin_id,
+                )
+                await conn.execute(
+                    "select library.admin_delete_user($1::uuid)",
+                    target_user_id,
+                )
+        except asyncpg.PostgresError as exc:
+            logger.error(
+                "AUTH: admin delete user RPC failed",
+                extra={
+                    "admin_id": admin_id,
+                    "target_user_id": str(target_user_id),
+                    "sqlstate": exc.sqlstate,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError(str(exc)) from exc
