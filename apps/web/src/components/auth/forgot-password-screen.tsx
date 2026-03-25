@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   LoaderCircle,
@@ -24,11 +25,18 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageTransitionLoader } from "@/components/ui/page-transition-loader";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
+import { useGuestRouteState } from "@/hooks/use-guest-route-state";
 import { useForgotPassword } from "@/hooks/useAuth";
 
 export function ForgotPasswordScreen(): React.JSX.Element {
+  const router = useRouter();
   const { submit, loading, error, success } = useForgotPassword();
+  const { loading: routeLoading, redirectPath, redirectMessage } =
+    useGuestRouteState("forgot-password");
   const [email, setEmail] = React.useState("");
+  const [redirecting, setRedirecting] = React.useState(false);
 
   React.useEffect(() => {
     if (error) {
@@ -38,9 +46,9 @@ export function ForgotPasswordScreen(): React.JSX.Element {
 
   React.useEffect(() => {
     if (success) {
-      toast.success(
-        "If the email exists, a password reset link has been sent.",
-      );
+      toast.success("Reset email will arrive shortly.", {
+        id: "forgot-password-success",
+      });
     }
   }, [success]);
 
@@ -49,8 +57,32 @@ export function ForgotPasswordScreen(): React.JSX.Element {
     await submit(email);
   };
 
+  React.useEffect(() => {
+    if (!routeLoading && redirectPath) {
+      setRedirecting(true);
+      router.replace(redirectPath);
+    }
+  }, [redirectPath, routeLoading, router]);
+
+  if (routeLoading || redirecting) {
+    return (
+      <AuthShell>
+        <PageTransitionLoader
+          title={redirecting ? "Returning To Your Workspace" : "Checking Session"}
+          message={
+            redirecting
+              ? (redirectMessage ??
+                "An active session was found, so the recovery form is being skipped.")
+              : "Validating your current sign-in state before rendering the recovery form."
+          }
+        />
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell>
+      <ScrollReveal direction="up-right" delayMs={50}>
       <Card className="border-border/60 bg-card/95 shadow-md shadow-primary/10">
         <CardHeader className="space-y-3.5 px-5 pb-1 pt-5 sm:px-6">
           <div className="mx-auto flex h-20 w-full items-center justify-center rounded-2xl border border-border/60 bg-muted text-primary">
@@ -90,7 +122,7 @@ export function ForgotPasswordScreen(): React.JSX.Element {
 
             {success ? (
               <p className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
-                If the account exists, a reset email will arrive shortly.
+                Reset email will arrive shortly.
               </p>
             ) : null}
 
@@ -140,6 +172,7 @@ export function ForgotPasswordScreen(): React.JSX.Element {
           </div>
         </CardFooter>
       </Card>
+      </ScrollReveal>
     </AuthShell>
   );
 }

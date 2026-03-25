@@ -10,19 +10,46 @@ Purpose:
 """
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from core.config import settings
 
 
 ProcessingStatus = Literal["uploaded", "processing", "indexed", "failed"]
+
+
+def _normalize_required_text(value: Any) -> Any:
+    """
+    Trim boundary whitespace on required document text fields.
+    """
+
+    if isinstance(value, str):
+        return value.strip()
+
+    return value
+
+
+def _normalize_optional_text(value: Any) -> Any:
+    """
+    Collapse optional document metadata text into a stable persisted form.
+    """
+
+    if isinstance(value, str):
+        normalized = " ".join(value.strip().split())
+        return normalized or None
+
+    return value
 
 
 class CreateUploadUrlRequest(BaseModel):
     """
     Request body for creating a signed upload URL.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     filename: str = Field(..., min_length=1, max_length=255, example="semester-rules.pdf")
     mime_type: str = Field(..., min_length=1, max_length=255, example="application/pdf")
@@ -31,6 +58,36 @@ class CreateUploadUrlRequest(BaseModel):
     document_type: Optional[str] = Field(default=None, max_length=100, example="policy")
     audience_scope: Optional[str] = Field(default=None, max_length=100, example="all_students")
     department: Optional[str] = Field(default=None, max_length=100, example="Registrar Office")
+
+    @field_validator("filename", "mime_type", mode="before")
+    @classmethod
+    def normalize_required_fields(cls, value: Any) -> Any:
+        """
+        Normalize required file metadata before validation.
+        """
+
+        return _normalize_required_text(value)
+
+    @field_validator("title", "document_type", "audience_scope", "department", mode="before")
+    @classmethod
+    def normalize_optional_fields(cls, value: Any) -> Any:
+        """
+        Normalize optional upload metadata fields.
+        """
+
+        return _normalize_optional_text(value)
+
+    @field_validator("file_size_bytes")
+    @classmethod
+    def enforce_max_file_size(cls, value: int) -> int:
+        """
+        Enforce the configured document upload size ceiling at the schema boundary.
+        """
+
+        if value > settings.document_upload_max_file_size_bytes:
+            raise ValueError("File exceeds upload size limit")
+
+        return value
 
 
 class UploadUrlPayload(BaseModel):

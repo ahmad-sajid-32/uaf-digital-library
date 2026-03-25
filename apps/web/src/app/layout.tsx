@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans, Roboto } from "next/font/google";
 
+import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -31,12 +32,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${publicSans.variable} ${roboto.variable} antialiased`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Toaster position="bottom-right" closeButton offset={24} />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            {children}
+            <Toaster position="bottom-right" closeButton offset={24} />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

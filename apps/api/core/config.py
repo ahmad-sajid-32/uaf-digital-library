@@ -99,6 +99,27 @@ class Settings:
     selenium_timeout_seconds: int
     reg_input_selector: str
     submit_selector: str
+    cors_allowed_origins: tuple[str, ...]
+    cors_allowed_methods: tuple[str, ...]
+    cors_allowed_headers: tuple[str, ...]
+    frontend_app_url: str
+    security_headers_enabled: bool
+    security_hsts_enabled: bool
+    security_hsts_max_age_seconds: int
+    trusted_client_ip_headers: tuple[str, ...]
+    auth_public_rate_limit_window_seconds: int
+    auth_public_rate_limit_max_requests: int
+    admin_auth_rate_limit_window_seconds: int
+    admin_auth_rate_limit_max_requests: int
+    ai_retrieval_rate_limit_window_seconds: int
+    ai_retrieval_rate_limit_max_requests: int
+    ai_generation_rate_limit_window_seconds: int
+    ai_generation_rate_limit_max_requests: int
+    document_upload_rate_limit_window_seconds: int
+    document_upload_rate_limit_max_requests: int
+    document_finalize_rate_limit_window_seconds: int
+    document_finalize_rate_limit_max_requests: int
+    document_upload_max_file_size_bytes: int
 
 
 def _get_required_env(var_name: str) -> str:
@@ -148,6 +169,107 @@ def _get_env(var_name: str, default: str) -> str:
     return value
 
 
+def _get_list_env(var_name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """
+    Fetch a comma-separated environment variable as a normalized tuple.
+    """
+
+    value = os.getenv(var_name)
+
+    if value is None or value.strip() == "":
+        return default
+
+    return tuple(
+        item.strip().rstrip("/")
+        for item in value.split(",")
+        if item.strip()
+    )
+
+
+def _get_bool_env(var_name: str, default: bool) -> bool:
+    """
+    Fetch a boolean environment variable with a safe default.
+    """
+
+    value = os.getenv(var_name)
+
+    if value is None or value.strip() == "":
+        return default
+
+    normalized = value.strip().lower()
+
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+
+    raise ValueError(
+        f"CONFIG ERROR: Environment variable '{var_name}' must be a boolean value."
+    )
+
+
+def _normalize_methods(values: tuple[str, ...]) -> tuple[str, ...]:
+    """
+    Normalize CORS method values to uppercase tokens.
+    """
+
+    return tuple(value.strip().upper() for value in values if value.strip())
+
+
+def _normalize_headers(values: tuple[str, ...]) -> tuple[str, ...]:
+    """
+    Normalize CORS header values while preserving canonical formatting.
+    """
+
+    return tuple(value.strip() for value in values if value.strip())
+
+
+def _validate_cors_settings(
+    *,
+    environment: str,
+    origins: tuple[str, ...],
+    methods: tuple[str, ...],
+    headers: tuple[str, ...],
+) -> None:
+    """
+    Validate CORS configuration with stricter production safety rules.
+    """
+
+    if not origins:
+        raise ValueError("CONFIG ERROR: CORS_ALLOWED_ORIGINS must not be empty.")
+
+    if any(origin == "*" for origin in origins):
+        raise ValueError(
+            "CONFIG ERROR: Wildcard CORS origin '*' is not allowed."
+        )
+
+    if not methods:
+        raise ValueError("CONFIG ERROR: CORS_ALLOWED_METHODS must not be empty.")
+
+    if not headers:
+        raise ValueError("CONFIG ERROR: CORS_ALLOWED_HEADERS must not be empty.")
+
+    if environment == "production":
+        if os.getenv("CORS_ALLOWED_ORIGINS", "").strip() == "":
+            raise RuntimeError(
+                "CONFIG ERROR: CORS_ALLOWED_ORIGINS must be explicitly set in production."
+            )
+
+        for origin in origins:
+            lowered = origin.lower()
+
+            if lowered.startswith("http://"):
+                raise ValueError(
+                    "CONFIG ERROR: Production CORS origins must use HTTPS."
+                )
+
+            if "localhost" in lowered or "127.0.0.1" in lowered:
+                raise ValueError(
+                    "CONFIG ERROR: Localhost origins are not allowed in production CORS policy."
+                )
+
+
 def load_settings() -> Settings:
     """
     Load and validate application configuration.
@@ -171,6 +293,33 @@ def load_settings() -> Settings:
         raise ValueError(
             "CONFIG ERROR: ENVIRONMENT must be one of: local | staging | production"
         )
+
+    cors_allowed_origins = _get_list_env(
+        "CORS_ALLOWED_ORIGINS",
+        (
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ),
+    )
+    cors_allowed_methods = _normalize_methods(
+        _get_list_env(
+            "CORS_ALLOWED_METHODS",
+            ("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"),
+        )
+    )
+    cors_allowed_headers = _normalize_headers(
+        _get_list_env(
+            "CORS_ALLOWED_HEADERS",
+            ("Authorization", "Content-Type", "Accept", "X-Request-ID"),
+        )
+    )
+
+    _validate_cors_settings(
+        environment=environment,
+        origins=cors_allowed_origins,
+        methods=cors_allowed_methods,
+        headers=cors_allowed_headers,
+    )
 
     return Settings(
         database_url=_get_required_env("DATABASE_URL"),
@@ -217,6 +366,61 @@ def load_settings() -> Settings:
         submit_selector=_get_env(
             "SUBMIT_SELECTOR",
             "xpath=//input[@type='submit'][@value='Result']",
+        ),
+        cors_allowed_origins=cors_allowed_origins,
+        cors_allowed_methods=cors_allowed_methods,
+        cors_allowed_headers=cors_allowed_headers,
+        frontend_app_url=_get_env("FRONTEND_APP_URL", "http://localhost:3000"),
+        security_headers_enabled=_get_bool_env("SECURITY_HEADERS_ENABLED", True),
+        security_hsts_enabled=_get_bool_env(
+            "SECURITY_HSTS_ENABLED",
+            environment == "production",
+        ),
+        security_hsts_max_age_seconds=int(
+            _get_env("SECURITY_HSTS_MAX_AGE_SECONDS", "31536000")
+        ),
+        trusted_client_ip_headers=_get_list_env(
+            "TRUSTED_CLIENT_IP_HEADERS",
+            (),
+        ),
+        auth_public_rate_limit_window_seconds=int(
+            _get_env("AUTH_PUBLIC_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        auth_public_rate_limit_max_requests=int(
+            _get_env("AUTH_PUBLIC_RATE_LIMIT_MAX_REQUESTS", "12")
+        ),
+        admin_auth_rate_limit_window_seconds=int(
+            _get_env("ADMIN_AUTH_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        admin_auth_rate_limit_max_requests=int(
+            _get_env("ADMIN_AUTH_RATE_LIMIT_MAX_REQUESTS", "40")
+        ),
+        ai_retrieval_rate_limit_window_seconds=int(
+            _get_env("AI_RETRIEVAL_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        ai_retrieval_rate_limit_max_requests=int(
+            _get_env("AI_RETRIEVAL_RATE_LIMIT_MAX_REQUESTS", "20")
+        ),
+        ai_generation_rate_limit_window_seconds=int(
+            _get_env("AI_GENERATION_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        ai_generation_rate_limit_max_requests=int(
+            _get_env("AI_GENERATION_RATE_LIMIT_MAX_REQUESTS", "10")
+        ),
+        document_upload_rate_limit_window_seconds=int(
+            _get_env("DOCUMENT_UPLOAD_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        document_upload_rate_limit_max_requests=int(
+            _get_env("DOCUMENT_UPLOAD_RATE_LIMIT_MAX_REQUESTS", "20")
+        ),
+        document_finalize_rate_limit_window_seconds=int(
+            _get_env("DOCUMENT_FINALIZE_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        document_finalize_rate_limit_max_requests=int(
+            _get_env("DOCUMENT_FINALIZE_RATE_LIMIT_MAX_REQUESTS", "15")
+        ),
+        document_upload_max_file_size_bytes=int(
+            _get_env("DOCUMENT_UPLOAD_MAX_FILE_SIZE_BYTES", "26214400")
         ),
     )
 

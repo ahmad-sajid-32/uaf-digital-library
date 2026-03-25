@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
+from core.rate_limit import hash_sensitive_value
 from modules.results.schemas import (
     REG_NUMBER_PATTERN,
     RESULT_SUCCESS_EXAMPLE,
@@ -157,7 +158,7 @@ async def get_public_result(
         extra={
             "request_id": getattr(request.state, "request_id", None),
             "route": request.url.path,
-            "reg_number": reg_number,
+            "reg_number_hash": hash_sensitive_value(reg_number),
         },
     )
 
@@ -170,7 +171,7 @@ async def get_public_result(
             extra={
                 "request_id": getattr(request.state, "request_id", None),
                 "route": request.url.path,
-                "reg_number": reg_number,
+                "reg_number_hash": hash_sensitive_value(reg_number),
                 "error": str(exc),
                 "status_code": http_status,
             },

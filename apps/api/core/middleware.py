@@ -125,11 +125,16 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         - /health (always public)
         - GET /api/books (public catalog read)
         - GET /api/public/result (public LMS result lookup)
+        - POST /api/auth/account-status (deleted account login check)
         - Swagger routes (only in non-production environments)
         """
 
         path = request.url.path
         method = request.method.upper()
+
+        # CORS preflight requests must never require authentication.
+        if method == "OPTIONS":
+            return True
 
         # Health endpoint (always public)
         if path == "/health":
@@ -141,6 +146,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         # Public LMS result lookup
         if method == "GET" and path == "/api/public/result":
+            return True
+
+        # Public deleted-account status lookup
+        if method == "POST" and path == "/api/auth/account-status":
             return True
 
         # Swagger & OpenAPI (allowed only outside production)

@@ -14,7 +14,7 @@ Integration Notes:
 - This service owns storage transport only. It does not mutate document metadata.
 """
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import quote
 
 import httpx
@@ -143,6 +143,19 @@ class StorageService:
         Check whether a storage object exists.
         """
 
+        object_info = await cls.get_object_info(bucket_name, object_path)
+        return object_info is not None
+
+    @classmethod
+    async def get_object_info(
+        cls,
+        bucket_name: str,
+        object_path: str,
+    ) -> Dict[str, Any] | None:
+        """
+        Retrieve storage object metadata for policy enforcement and validation.
+        """
+
         encoded_path = cls._encode_object_path(object_path)
         endpoint = (
             f"{cls._base_url()}/object/info/"
@@ -153,7 +166,7 @@ class StorageService:
             response = await client.get(endpoint, headers=cls._headers())
 
         if response.status_code == 404:
-            return False
+            return None
 
         if response.is_error:
             logger.error(
@@ -167,7 +180,7 @@ class StorageService:
             )
             raise RuntimeError("Storage request failed")
 
-        return True
+        return response.json()
 
     @classmethod
     async def delete_object(cls, bucket_name: str, object_path: str) -> bool:

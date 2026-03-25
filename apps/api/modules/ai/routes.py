@@ -15,6 +15,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
+from core.rate_limit import RateLimitTier, enforce_rate_limit
 from modules.ai.schemas import (
     AI_QUERY_FALLBACK_EXAMPLE,
     AI_QUERY_REQUEST_EXAMPLE,
@@ -65,6 +66,23 @@ def _resolve_runtime_error_status(message: str) -> int:
     return status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
+async def _enforce_ai_rate_limit(
+    request: Request,
+    *,
+    user_id: str,
+    tier: RateLimitTier,
+) -> None:
+    """
+    Apply authenticated AI throttling using the configured route sensitivity tier.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier=tier,
+        user_id=user_id,
+    )
+
+
 @router.post(
     "/retrieval/search",
     response_model=RetrievalSearchResponse,
@@ -76,7 +94,8 @@ def _resolve_runtime_error_status(message: str) -> int:
                     "example": RETRIEVAL_SEARCH_SUCCESS_EXAMPLE
                 }
             },
-        }
+        },
+        429: {"description": "Too Many Requests"},
     },
 )
 async def search_retrieval_corpus(
@@ -95,6 +114,13 @@ async def search_retrieval_corpus(
     user_id = _require_user_id(request)
     request_id = getattr(request.state, "request_id", None)
     started_at = time.perf_counter()
+    rate_limit_tier = "ai_retrieval"
+
+    await _enforce_ai_rate_limit(
+        request,
+        user_id=user_id,
+        tier=rate_limit_tier,
+    )
 
     logger.info(
         "AI: retrieval request started",
@@ -102,6 +128,7 @@ async def search_retrieval_corpus(
             "request_id": request_id,
             "route": request.url.path,
             "user_id": user_id,
+            "rate_limit_tier": rate_limit_tier,
             "query_length": len(payload.query),
             "top_k": payload.top_k,
             "similarity_threshold": payload.similarity_threshold,
@@ -125,6 +152,7 @@ async def search_retrieval_corpus(
                 "request_id": request_id,
                 "route": request.url.path,
                 "user_id": user_id,
+                "rate_limit_tier": rate_limit_tier,
                 "query_length": len(payload.query),
                 "top_k": payload.top_k,
                 "similarity_threshold": payload.similarity_threshold,
@@ -148,6 +176,7 @@ async def search_retrieval_corpus(
             "request_id": request_id,
             "route": request.url.path,
             "user_id": user_id,
+            "rate_limit_tier": rate_limit_tier,
             "query_length": len(data["query"]),
             "top_k": data["applied_top_k"],
             "similarity_threshold": data["applied_similarity_threshold"],
@@ -156,6 +185,7 @@ async def search_retrieval_corpus(
             "department": payload.department,
             "matches_returned": len(data["items"]),
             "latency_ms": latency_ms,
+            "status_code": 200,
         },
     )
 
@@ -181,7 +211,8 @@ async def search_retrieval_corpus(
                     }
                 }
             },
-        }
+        },
+        429: {"description": "Too Many Requests"},
     },
 )
 async def query_grounded_answer(
@@ -200,6 +231,13 @@ async def query_grounded_answer(
     user_id = _require_user_id(request)
     request_id = getattr(request.state, "request_id", None)
     started_at = time.perf_counter()
+    rate_limit_tier = "ai_generation"
+
+    await _enforce_ai_rate_limit(
+        request,
+        user_id=user_id,
+        tier=rate_limit_tier,
+    )
 
     logger.info(
         "AI: answer request started",
@@ -207,6 +245,7 @@ async def query_grounded_answer(
             "request_id": request_id,
             "route": request.url.path,
             "user_id": user_id,
+            "rate_limit_tier": rate_limit_tier,
             "query_length": len(payload.query),
             "top_k": payload.top_k,
             "similarity_threshold": payload.similarity_threshold,
@@ -230,6 +269,7 @@ async def query_grounded_answer(
                 "request_id": request_id,
                 "route": request.url.path,
                 "user_id": user_id,
+                "rate_limit_tier": rate_limit_tier,
                 "query_length": len(payload.query),
                 "top_k": payload.top_k,
                 "similarity_threshold": payload.similarity_threshold,
@@ -253,6 +293,7 @@ async def query_grounded_answer(
             "request_id": request_id,
             "route": request.url.path,
             "user_id": user_id,
+            "rate_limit_tier": rate_limit_tier,
             "query_length": len(data["query"]),
             "top_k": data["applied_top_k"],
             "similarity_threshold": data["applied_similarity_threshold"],
@@ -262,6 +303,7 @@ async def query_grounded_answer(
             "retrieved_chunks_count": data["retrieved_chunks_count"],
             "fallback_used": data["fallback_used"],
             "latency_ms": latency_ms,
+            "status_code": 200,
         },
     )
 

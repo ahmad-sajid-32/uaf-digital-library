@@ -25,15 +25,21 @@ from typing import Any, Dict
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from core.config import settings
 from core.logging import configure_logging, get_logger
 from core.database import Database
 from core.middleware import AuthenticationMiddleware
+from core.rate_limit import RateLimitExceededError, build_rate_limit_response
+from core.security import SecurityHeadersMiddleware
 
 from modules.books.routes import router as books_router
-from modules.auth.routes import router as auth_router
+from modules.auth.routes import (
+    public_router as public_auth_router,
+    router as auth_router,
+)
 from modules.queue.routes import router as queue_router
 from modules.borrow.routes import router as borrow_router
 from modules.me.routes import router as me_router
@@ -109,7 +115,15 @@ app = FastAPI(
 # Middleware Registration
 # --------------------------------------------------
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(settings.cors_allowed_origins),
+    allow_credentials=True,
+    allow_methods=list(settings.cors_allowed_methods),
+    allow_headers=list(settings.cors_allowed_headers),
+)
 app.add_middleware(AuthenticationMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # --------------------------------------------------
 # Router Registration
@@ -117,6 +131,7 @@ app.add_middleware(AuthenticationMiddleware)
 
 app.include_router(books_router)
 app.include_router(auth_router)
+app.include_router(public_auth_router)
 app.include_router(queue_router)
 app.include_router(borrow_router)
 app.include_router(me_router)
@@ -186,6 +201,17 @@ async def validation_exception_handler(
     exc: RequestValidationError,
 ):
     return build_error_response(422, "Validation Error", request)
+
+
+@app.exception_handler(RateLimitExceededError)
+async def rate_limit_exception_handler(
+    request: Request,
+    exc: RateLimitExceededError,
+):
+    return build_rate_limit_response(
+        retry_after_seconds=exc.retry_after_seconds,
+        message=exc.message,
+    )
 
 
 @app.exception_handler(Exception)

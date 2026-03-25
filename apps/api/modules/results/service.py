@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from core.database import Database
 from core.logging import get_logger
+from core.rate_limit import hash_sensitive_value
 from modules.results.calculator import ResultCalculator
 from modules.results.parser import ResultParser
 from modules.results.schemas import ResultLookupRequest
@@ -100,7 +101,7 @@ class ResultsService:
                 "RESULTS: invalid registration number",
                 extra={
                     "user_id": user_id,
-                    "reg_number": reg_number,
+                    "reg_number_hash": hash_sensitive_value(reg_number),
                     "error": str(exc),
                 },
             )
@@ -111,7 +112,10 @@ class ResultsService:
         if cached_result is not None:
             logger.info(
                 "RESULTS: cache hit",
-                extra={"user_id": user_id, "reg_number": validated.reg_number},
+                extra={
+                    "user_id": user_id,
+                    "reg_number_hash": hash_sensitive_value(validated.reg_number),
+                },
             )
             return cached_result
 
@@ -124,7 +128,7 @@ class ResultsService:
                 "RESULTS: parse failed",
                 extra={
                     "user_id": user_id,
-                    "reg_number": validated.reg_number,
+                    "reg_number_hash": hash_sensitive_value(validated.reg_number),
                     "error": str(exc),
                 },
             )
@@ -142,7 +146,7 @@ class ResultsService:
             "RESULTS: result fetched",
             extra={
                 "user_id": user_id,
-                "reg_number": validated.reg_number,
+                "reg_number_hash": hash_sensitive_value(validated.reg_number),
                 "semesters_detected": len(gpa_summary["semesters"]),
                 "valid_courses_count": sum(
                     len(semester["courses"]) for semester in gpa_summary["semesters"]

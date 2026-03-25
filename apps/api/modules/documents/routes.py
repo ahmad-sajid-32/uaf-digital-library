@@ -16,6 +16,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
+from core.rate_limit import RateLimitTier, enforce_rate_limit, hash_sensitive_value
 from modules.documents.schemas import (
     CREATE_UPLOAD_URL_REQUEST_EXAMPLE,
     CREATE_UPLOAD_URL_SUCCESS_EXAMPLE,
@@ -67,6 +68,12 @@ def _resolve_runtime_error_status(message: str) -> int:
     if "Unsupported file type" in message or "Invalid input" in message:
         return status.HTTP_400_BAD_REQUEST
 
+    if "Stored object violates upload policy" in message:
+        return status.HTTP_400_BAD_REQUEST
+
+    if "File exceeds upload size limit" in message:
+        return status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+
     if "Storage object missing" in message:
         return status.HTTP_409_CONFLICT
 
@@ -74,6 +81,25 @@ def _resolve_runtime_error_status(message: str) -> int:
         return status.HTTP_500_INTERNAL_SERVER_ERROR
 
     return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+async def _enforce_document_rate_limit(
+    request: Request,
+    *,
+    user_id: str,
+    tier: RateLimitTier,
+    subject_hint: str | None = None,
+) -> None:
+    """
+    Apply authenticated document-surface throttling by sensitivity tier.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier=tier,
+        user_id=user_id,
+        subject_hint=subject_hint,
+    )
 
 
 @router.post(
@@ -87,7 +113,8 @@ def _resolve_runtime_error_status(message: str) -> int:
                     "example": CREATE_UPLOAD_URL_SUCCESS_EXAMPLE
                 }
             },
-        }
+        },
+        429: {"description": "Too Many Requests"},
     },
 )
 async def create_upload_url(
@@ -104,6 +131,14 @@ async def create_upload_url(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> CreateUploadUrlResponse:
     user_id = _require_user_id(request)
+    rate_limit_tier = "document_upload"
+
+    await _enforce_document_rate_limit(
+        request,
+        user_id=user_id,
+        tier=rate_limit_tier,
+        subject_hint=payload.filename,
+    )
 
     logger.info(
         "DOCUMENTS: upload url request",
@@ -111,7 +146,8 @@ async def create_upload_url(
             "request_id": getattr(request.state, "request_id", None),
             "route": request.url.path,
             "user_id": user_id,
-            "filename": payload.filename,
+            "rate_limit_tier": rate_limit_tier,
+            "filename_hash": hash_sensitive_value(payload.filename),
         },
     )
 
@@ -125,7 +161,8 @@ async def create_upload_url(
                 "request_id": getattr(request.state, "request_id", None),
                 "route": request.url.path,
                 "user_id": user_id,
-                "filename": payload.filename,
+                "rate_limit_tier": rate_limit_tier,
+                "filename_hash": hash_sensitive_value(payload.filename),
                 "error": str(exc),
                 "status_code": http_status,
             },
@@ -154,7 +191,8 @@ async def create_upload_url(
                     "example": FINALIZE_DOCUMENT_SUCCESS_EXAMPLE
                 }
             },
-        }
+        },
+        429: {"description": "Too Many Requests"},
     },
 )
 async def finalize_document(
@@ -163,6 +201,14 @@ async def finalize_document(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> FinalizeDocumentResponse:
     user_id = _require_user_id(request)
+    rate_limit_tier = "document_finalize"
+
+    await _enforce_document_rate_limit(
+        request,
+        user_id=user_id,
+        tier=rate_limit_tier,
+        subject_hint=str(document_id),
+    )
 
     logger.info(
         "DOCUMENTS: finalize request",
@@ -170,6 +216,7 @@ async def finalize_document(
             "request_id": getattr(request.state, "request_id", None),
             "route": request.url.path,
             "user_id": user_id,
+            "rate_limit_tier": rate_limit_tier,
             "document_id": str(document_id),
         },
     )
@@ -184,6 +231,7 @@ async def finalize_document(
                 "request_id": getattr(request.state, "request_id", None),
                 "route": request.url.path,
                 "user_id": user_id,
+                "rate_limit_tier": rate_limit_tier,
                 "document_id": str(document_id),
                 "error": str(exc),
                 "status_code": http_status,

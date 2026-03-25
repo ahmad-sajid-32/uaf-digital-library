@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   Eye,
@@ -9,26 +8,31 @@ import {
   LoaderCircle,
   LockKeyhole,
   Shield,
-  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AuthShell } from "@/components/auth/auth-shell";
+import { PasswordLinkStateCard } from "@/components/auth/password-link-state-card";
 import { Button } from "@/components/ui/button";
+import { PageTransitionLoader } from "@/components/ui/page-transition-loader";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import reset_hero_image from "@/assets/reset_hero_image.png";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { evaluatePasswordChecks, useResetPassword } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+
+type PasswordScreenMode = "reset" | "setup";
+
+interface ResetPasswordScreenProps {
+  mode?: PasswordScreenMode;
+}
 
 function RequirementRow({
   met,
@@ -52,8 +56,19 @@ function RequirementRow({
   );
 }
 
-export function ResetPasswordScreen(): React.JSX.Element {
-  const { submit, loading, error, ready, invalidLink } = useResetPassword();
+export function ResetPasswordScreen({
+  mode = "reset",
+}: ResetPasswordScreenProps): React.JSX.Element {
+  const isSetupMode = mode === "setup";
+  const {
+    submit,
+    loading,
+    error,
+    ready,
+    invalidLink,
+    accessType,
+    invalidReason,
+  } = useResetPassword({ successQueryKey: isSetupMode ? "setup" : "reset" });
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showNewPassword, setShowNewPassword] = React.useState(false);
@@ -75,49 +90,85 @@ export function ResetPasswordScreen(): React.JSX.Element {
     await submit(newPassword, confirmPassword);
   };
 
+  const invalidStateCopy = React.useMemo(() => {
+    if (invalidReason === "missing_or_unauthorized") {
+      return isSetupMode
+        ? {
+            title: "Password Setup Not Available",
+            description:
+              "This page only works from a valid invitation or approved setup session. Ask an administrator to send you a fresh setup email.",
+            primaryLabel: "Go to Login",
+            primaryHref: "/login",
+            secondaryLabel: "Contact Student Assistance",
+            secondaryHref:
+              "https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=ahmadsajid41324%40gmail.com&su=UAF%20Smart%20E-Library%20Assistance",
+          }
+        : {
+            title: "Recovery Session Not Available",
+            description:
+              "This page only works from a valid password recovery email or an already verified recovery session on this device.",
+            primaryLabel: "Request New Reset Link",
+            primaryHref: "/forgot-password",
+            secondaryLabel: "Back to Login",
+            secondaryHref: "/login",
+          };
+    }
+
+    if (accessType === "invite" || isSetupMode) {
+      return {
+        title: "Invitation Link Invalid or Expired",
+        description:
+          "This invitation link is invalid, expired, or has already been used. Ask an administrator to send a fresh setup email.",
+        primaryLabel: "Go to Login",
+        primaryHref: "/login",
+        secondaryLabel: "Contact Student Assistance",
+        secondaryHref:
+          "https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=ahmadsajid41324%40gmail.com&su=UAF%20Smart%20E-Library%20Assistance",
+      };
+    }
+
+    return {
+      title: "Recovery Link Invalid or Expired",
+      description:
+        "This recovery link is invalid, expired, or has already been used. Request a fresh password reset email to continue.",
+      primaryLabel: "Request New Reset Link",
+      primaryHref: "/forgot-password",
+      secondaryLabel: "Back to Login",
+      secondaryHref: "/login",
+    };
+  }, [accessType, invalidReason, isSetupMode]);
+
   if (!ready) {
     return (
       <AuthShell>
-        <Card className="border-border/60 bg-card/95 shadow-md shadow-primary/10">
-          <CardContent className="flex items-center justify-center py-12">
-            <div className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-muted px-5 py-3 text-sm font-medium text-muted-foreground">
-              <LoaderCircle className="h-5 w-5 animate-spin text-primary" />
-              Validating your recovery session...
-            </div>
-          </CardContent>
-        </Card>
+        <PageTransitionLoader
+          title={isSetupMode ? "Verifying Invitation" : "Validating Recovery"}
+          message={
+            isSetupMode
+              ? "Checking your invitation token and preparing the first-time password setup flow."
+              : "Checking your recovery link and restoring the secure password reset session."
+          }
+        />
       </AuthShell>
     );
   }
 
   if (invalidLink) {
     return (
-      <AuthShell>
-        <Card className="border-border/60 bg-card/95 shadow-md shadow-primary/10">
-          <CardHeader className="space-y-4 px-5 pt-5 text-center sm:px-6">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-danger/10 text-danger">
-              <ShieldAlert className="h-7 w-7" />
-            </div>
-            <CardTitle className="font-display text-2xl font-black tracking-tight text-foreground">
-              Invalid or Expired Link
-            </CardTitle>
-            <CardDescription className="px-0 text-sm leading-6 text-muted-foreground">
-              This recovery link is no longer valid. Request a new reset email
-              to continue.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter className="justify-center border-t border-border/60 px-5 pb-5 pt-4 sm:px-6">
-            <Button asChild className="h-11 rounded-xl px-5 text-sm">
-              <Link href="/forgot-password">Request a New Link</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </AuthShell>
+      <PasswordLinkStateCard
+        title={invalidStateCopy.title}
+        description={invalidStateCopy.description}
+        primaryLabel={invalidStateCopy.primaryLabel}
+        primaryHref={invalidStateCopy.primaryHref}
+        secondaryLabel={invalidStateCopy.secondaryLabel}
+        secondaryHref={invalidStateCopy.secondaryHref}
+      />
     );
   }
 
   return (
     <AuthShell>
+      <ScrollReveal direction={isSetupMode ? "up-left" : "up-right"} delayMs={40}>
       <Card className="gap-0 overflow-hidden border-border/60 bg-card/95 py-0 shadow-md shadow-primary/10">
         <div
           className="relative min-h-32 bg-cover bg-center"
@@ -128,10 +179,12 @@ export function ResetPasswordScreen(): React.JSX.Element {
           <div className="flex h-full flex-col justify-end gap-1.5 p-3 text-primary-foreground">
             <div className="space-y-1">
               <h1 className="font-display text-2xl font-black tracking-tight">
-                Reset Your Password
+                {isSetupMode ? "Set Up Your Password" : "Reset Your Password"}
               </h1>
               <p className="max-w-sm text-[11px] leading-5 text-primary-foreground/90">
-                Create a secure new password for your academic account.
+                {isSetupMode
+                  ? "Create your first secure password to activate your academic account."
+                  : "Create a secure new password for your academic account."}
               </p>
             </div>
           </div>
@@ -147,7 +200,11 @@ export function ResetPasswordScreen(): React.JSX.Element {
                   id="new-password"
                   type={showNewPassword ? "text" : "password"}
                   className="h-12 rounded-xl border-border/70 bg-muted pl-11 pr-12 text-sm"
-                  placeholder="Enter a strong password"
+                  placeholder={
+                    isSetupMode
+                      ? "Create your account password"
+                      : "Enter a strong password"
+                  }
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   required
@@ -237,10 +294,10 @@ export function ResetPasswordScreen(): React.JSX.Element {
               {loading ? (
                 <>
                   <LoaderCircle className="h-5 w-5 animate-spin" />
-                  Resetting Password...
+                  {isSetupMode ? "Saving Password..." : "Resetting Password..."}
                 </>
               ) : (
-                "Reset Password"
+                isSetupMode ? "Set Password" : "Reset Password"
               )}
             </Button>
           </form>
@@ -253,6 +310,7 @@ export function ResetPasswordScreen(): React.JSX.Element {
           </div>
         </CardFooter>
       </Card>
+      </ScrollReveal>
     </AuthShell>
   );
 }

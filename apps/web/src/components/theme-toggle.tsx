@@ -61,9 +61,9 @@ export function ThemeToggle({
 
   if (isCompact) {
     return (
-      <div className="relative inline-grid grid-cols-3 rounded-full border border-border/60 bg-card/95 p-1 text-card-foreground shadow-sm">
+      <div className="relative inline-grid shrink-0 grid-cols-3 rounded-full border border-border/60 bg-card/95 p-0.5 text-card-foreground shadow-sm sm:p-1">
         <div
-          className="pointer-events-none absolute left-1 top-1 h-9 w-9 rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out"
+          className="pointer-events-none absolute left-0.5 top-0.5 h-8 w-8 rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out sm:left-1 sm:top-1 sm:h-9 sm:w-9"
           style={{
             transform: `translateX(calc(${activeIndex} * 100%))`,
           }}
@@ -78,7 +78,7 @@ export function ThemeToggle({
               type="button"
               onClick={() => setTheme(option.value)}
               className={cn(
-                "relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-300",
+                "relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors duration-300 sm:h-9 sm:w-9",
                 isActive
                   ? "text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -87,7 +87,7 @@ export function ThemeToggle({
               aria-pressed={isActive}
               title={option.label}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           );
         })}

@@ -26,13 +26,18 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from core.database import Database
 from core.logging import get_logger
+from core.rate_limit import enforce_rate_limit, hash_sensitive_value
 
 from modules.auth.schemas import (
     ADMIN_DELETE_USER_SUCCESS_EXAMPLE,
+    ACCOUNT_STATUS_SUCCESS_EXAMPLE,
     ADMIN_UPDATE_PROFILE_SUCCESS_EXAMPLE,
     CREATE_ADMIN_SUCCESS_EXAMPLE,
     CREATE_LIBRARIAN_SUCCESS_EXAMPLE,
     CREATE_STUDENT_SUCCESS_EXAMPLE,
+    AccountStatusRequest,
+    AccountStatusResponse,
+    AccountStatusData,
     AdminUpdateUserProfileRequest,
     CreateStudentRequest,
     CreateLibrarianRequest,
@@ -52,6 +57,11 @@ bearer_scheme = HTTPBearer(auto_error=False)
 router = APIRouter(
     prefix="/api/admin/users",
     tags=["Admin Users"],
+)
+
+public_router = APIRouter(
+    prefix="/api/auth",
+    tags=["Auth"],
 )
 
 
@@ -85,6 +95,40 @@ async def _ensure_admin(user_id: str) -> None:
         )
 
 
+async def _enforce_public_auth_rate_limit(
+    request: Request,
+    *,
+    email: str,
+) -> None:
+    """
+    Apply a strict public auth probe limiter keyed by route fingerprint and email hash.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier="auth_public",
+        subject_hint=email,
+    )
+
+
+async def _enforce_admin_auth_rate_limit(
+    request: Request,
+    *,
+    user_id: str,
+    subject_hint: str | None = None,
+) -> None:
+    """
+    Apply admin auth-management throttling for authenticated callers.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier="admin_auth",
+        user_id=user_id,
+        subject_hint=subject_hint,
+    )
+
+
 def _resolve_runtime_error_status(message: str) -> int:
     """
     Map deterministic PostgreSQL errors to HTTP status codes.
@@ -102,7 +146,58 @@ def _resolve_runtime_error_status(message: str) -> int:
     if "Invalid full_name" in message:
         return status.HTTP_400_BAD_REQUEST
 
+    if "User with this email already exists" in message:
+        return status.HTTP_409_CONFLICT
+
     return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+# ============================================================
+# Public Account Status
+# ============================================================
+
+@public_router.post(
+    "/account-status",
+    response_model=AccountStatusResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {
+            "description": "Account status retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": ACCOUNT_STATUS_SUCCESS_EXAMPLE
+                }
+            },
+        },
+    },
+)
+async def get_account_status(
+    request: Request,
+    payload: AccountStatusRequest,
+) -> AccountStatusResponse:
+    """
+    Public endpoint used by guest auth flows to detect account state.
+    """
+
+    await _enforce_public_auth_rate_limit(request, email=payload.email)
+
+    logger.info(
+        "AUTH: account status request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "email_hash": hash_sensitive_value(payload.email),
+        },
+    )
+
+    result = await AuthService.get_account_status(payload.email)
+
+    return AccountStatusResponse(
+        status=200,
+        message="Account status retrieved successfully",
+        data=AccountStatusData(**result.model_dump()),
+        timestamp_ms=int(time.time() * 1000),
+    )
 
 
 # ============================================================
@@ -124,6 +219,7 @@ def _resolve_runtime_error_status(message: str) -> int:
         },
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden"},
+        409: {"description": "Email already exists"},
         500: {"description": "Internal Server Error"},
     },
 )
@@ -147,14 +243,40 @@ async def create_student(
             detail="Authentication required",
         )
 
+    await _enforce_admin_auth_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=payload.email,
+    )
     await _ensure_admin(user_id)
 
     logger.info(
         "AUTH: create student request",
-        extra={"admin_id": user_id, "email": payload.email},
+        extra={
+            "admin_id": user_id,
+            "email_hash": hash_sensitive_value(payload.email),
+        },
     )
 
-    result = await AuthService.create_student(payload)
+    try:
+        result = await AuthService.create_student(payload)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "AUTH: create student failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "admin_id": user_id,
+                "email_hash": hash_sensitive_value(payload.email),
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
 
     return UserCreationResponse(
         status=200,
@@ -183,6 +305,7 @@ async def create_student(
         },
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden"},
+        409: {"description": "Email already exists"},
         500: {"description": "Internal Server Error"},
     },
 )
@@ -206,14 +329,40 @@ async def create_librarian(
             detail="Authentication required",
         )
 
+    await _enforce_admin_auth_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=payload.email,
+    )
     await _ensure_admin(user_id)
 
     logger.info(
         "AUTH: create librarian request",
-        extra={"admin_id": user_id, "email": payload.email},
+        extra={
+            "admin_id": user_id,
+            "email_hash": hash_sensitive_value(payload.email),
+        },
     )
 
-    result = await AuthService.create_librarian(payload)
+    try:
+        result = await AuthService.create_librarian(payload)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "AUTH: create librarian failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "admin_id": user_id,
+                "email_hash": hash_sensitive_value(payload.email),
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
 
     return UserCreationResponse(
         status=200,
@@ -242,6 +391,7 @@ async def create_librarian(
         },
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden"},
+        409: {"description": "Email already exists"},
         500: {"description": "Internal Server Error"},
     },
 )
@@ -265,14 +415,40 @@ async def create_admin(
             detail="Authentication required",
         )
 
+    await _enforce_admin_auth_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=payload.email,
+    )
     await _ensure_admin(user_id)
 
     logger.info(
         "AUTH: create admin request",
-        extra={"admin_id": user_id, "email": payload.email},
+        extra={
+            "admin_id": user_id,
+            "email_hash": hash_sensitive_value(payload.email),
+        },
     )
 
-    result = await AuthService.create_admin(payload)
+    try:
+        result = await AuthService.create_admin(payload)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "AUTH: create admin failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "admin_id": user_id,
+                "email_hash": hash_sensitive_value(payload.email),
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
 
     return UserCreationResponse(
         status=200,
@@ -319,6 +495,11 @@ async def update_user_profile(
             detail="Authentication required",
         )
 
+    await _enforce_admin_auth_rate_limit(
+        request,
+        user_id=admin_id,
+        subject_hint=str(user_id),
+    )
     await _ensure_admin(admin_id)
 
     logger.info(
@@ -395,6 +576,11 @@ async def delete_user(
             detail="Authentication required",
         )
 
+    await _enforce_admin_auth_rate_limit(
+        request,
+        user_id=admin_id,
+        subject_hint=str(user_id),
+    )
     await _ensure_admin(admin_id)
 
     logger.info(

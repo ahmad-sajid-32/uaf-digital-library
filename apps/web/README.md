@@ -53,7 +53,9 @@ Before testing password recovery, configure Supabase Auth:
 - Site URL: `http://localhost:3000`
 - Redirect URLs must include:
   - `http://localhost:3000/reset-password`
+  - `http://localhost:3000/setup-password`
   - `https://your-production-domain/reset-password`
+  - `https://your-production-domain/setup-password`
 
 ### Auth -> Email Templates
 
@@ -81,6 +83,8 @@ Default local URL:
   Recovery email request flow
 - `/reset-password`
   Supabase recovery session landing and password reset
+- `/setup-password`
+  First-time password setup for admin-created users
 
 ## Theme System
 

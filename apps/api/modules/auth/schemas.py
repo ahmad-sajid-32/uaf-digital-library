@@ -16,10 +16,69 @@ Architectural Rules:
 - Validation and documentation only.
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    field_validator,
+)
+
+
+def _normalize_email(value: Any) -> Any:
+    """
+    Normalize an email-like value before EmailStr validation.
+    """
+
+    if isinstance(value, str):
+        return value.strip().lower()
+
+    return value
+
+
+def _normalize_bounded_text(value: Any) -> Any:
+    """
+    Trim and collapse internal whitespace for human-readable text fields.
+    """
+
+    if isinstance(value, str):
+        return " ".join(value.strip().split())
+
+    return value
+
+
+def _normalize_roll_number(value: Any) -> Any:
+    """
+    Normalize roll numbers to trimmed lowercase tokens.
+    """
+
+    if isinstance(value, str):
+        return value.strip().lower()
+
+    return value
+
+
+def _normalize_employee_code(value: Any) -> Any:
+    """
+    Normalize employee codes to trimmed uppercase tokens.
+    """
+
+    if isinstance(value, str):
+        return value.strip().upper()
+
+    return value
+
+
+class StrictRequestModel(BaseModel):
+    """
+    Shared strict request base model for auth payloads.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class UserCreationData(BaseModel):
@@ -56,6 +115,46 @@ class UserCreationResponse(BaseModel):
     timestamp_ms: int = Field(..., example=1741348800000)
 
 
+class AccountStatusRequest(StrictRequestModel):
+    """
+    Request model for checking whether an email belongs to an app account.
+    """
+
+    email: EmailStr = Field(..., example="user@uaf.edu.pk")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: Any) -> Any:
+        """
+        Normalize guest auth email probes before validation.
+        """
+
+        return _normalize_email(value)
+
+
+class AccountStatusData(BaseModel):
+    """
+    Public-safe account state payload for guest auth messaging.
+    """
+
+    has_account: bool = Field(..., example=True)
+    is_deleted: bool = Field(..., example=True)
+
+
+class AccountStatusResponse(BaseModel):
+    """
+    Standard normalized 200 response for account status lookup.
+    """
+
+    status: int = Field(..., example=200)
+    message: str = Field(
+        ...,
+        example="Account status retrieved successfully",
+    )
+    data: AccountStatusData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
 class EmptyData(BaseModel):
     """
     Empty object payload for successful admin profile mutations.
@@ -75,7 +174,7 @@ class SimpleMessageResponse(BaseModel):
     timestamp_ms: int = Field(..., example=1741348800000)
 
 
-class CreateStudentRequest(BaseModel):
+class CreateStudentRequest(StrictRequestModel):
     """
     Request model for creating a student account.
     """
@@ -95,8 +194,35 @@ class CreateStudentRequest(BaseModel):
     ] = Field(..., example="Agriculture")
     semester: int = Field(..., gt=0, example=5)
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: Any) -> Any:
+        """
+        Normalize email input before EmailStr validation.
+        """
 
-class CreateLibrarianRequest(BaseModel):
+        return _normalize_email(value)
+
+    @field_validator("full_name", "department", mode="before")
+    @classmethod
+    def normalize_text_fields(cls, value: Any) -> Any:
+        """
+        Normalize human-readable bounded text fields.
+        """
+
+        return _normalize_bounded_text(value)
+
+    @field_validator("roll_number", mode="before")
+    @classmethod
+    def normalize_roll_number(cls, value: Any) -> Any:
+        """
+        Normalize roll number casing and boundary whitespace.
+        """
+
+        return _normalize_roll_number(value)
+
+
+class CreateLibrarianRequest(StrictRequestModel):
     """
     Request model for creating a librarian account.
     """
@@ -115,8 +241,35 @@ class CreateLibrarianRequest(BaseModel):
         StringConstraints(min_length=2, max_length=100),
     ] = Field(..., example="Central Library")
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: Any) -> Any:
+        """
+        Normalize email input before EmailStr validation.
+        """
 
-class CreateAdminRequest(BaseModel):
+        return _normalize_email(value)
+
+    @field_validator("full_name", "department", mode="before")
+    @classmethod
+    def normalize_text_fields(cls, value: Any) -> Any:
+        """
+        Normalize human-readable bounded text fields.
+        """
+
+        return _normalize_bounded_text(value)
+
+    @field_validator("employee_code", mode="before")
+    @classmethod
+    def normalize_employee_code(cls, value: Any) -> Any:
+        """
+        Normalize employee codes to a stable uppercase form.
+        """
+
+        return _normalize_employee_code(value)
+
+
+class CreateAdminRequest(StrictRequestModel):
     """
     Request model for creating an admin account.
     """
@@ -131,8 +284,26 @@ class CreateAdminRequest(BaseModel):
         StringConstraints(min_length=2, max_length=100),
     ] = Field(..., example="Chief Librarian")
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, value: Any) -> Any:
+        """
+        Normalize email input before EmailStr validation.
+        """
 
-class AdminUpdateUserProfileRequest(BaseModel):
+        return _normalize_email(value)
+
+    @field_validator("full_name", "designation", mode="before")
+    @classmethod
+    def normalize_text_fields(cls, value: Any) -> Any:
+        """
+        Normalize human-readable bounded text fields.
+        """
+
+        return _normalize_bounded_text(value)
+
+
+class AdminUpdateUserProfileRequest(StrictRequestModel):
     """
     Request model for updating a target user's full name.
     """
@@ -141,6 +312,15 @@ class AdminUpdateUserProfileRequest(BaseModel):
         str,
         StringConstraints(min_length=2, max_length=100),
     ] = Field(..., example="Muhammad Ahmad")
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def normalize_full_name(cls, value: Any) -> Any:
+        """
+        Normalize admin-managed full-name updates before validation.
+        """
+
+        return _normalize_bounded_text(value)
 
 
 CREATE_STUDENT_SUCCESS_EXAMPLE = {
@@ -175,6 +355,16 @@ CREATE_ADMIN_SUCCESS_EXAMPLE = {
         "email": "admin@uaf.edu.pk",
         "role": "ADMIN",
         "password_setup_required": True,
+    },
+    "timestamp_ms": 1741348800000,
+}
+
+ACCOUNT_STATUS_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Account status retrieved successfully",
+    "data": {
+        "has_account": True,
+        "is_deleted": True,
     },
     "timestamp_ms": 1741348800000,
 }

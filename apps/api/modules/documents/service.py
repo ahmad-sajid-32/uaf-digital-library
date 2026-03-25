@@ -18,7 +18,7 @@ Architectural Constraints:
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -26,6 +26,7 @@ import asyncpg
 from core.config import settings
 from core.database import Database
 from core.logging import get_logger
+from core.rate_limit import hash_sensitive_value
 from modules.documents.schemas import CreateUploadUrlRequest
 from services.document_ingestion_service import DocumentIngestionService
 from services.storage_service import StorageService
@@ -116,16 +117,16 @@ class DocumentsService:
                     payload.mime_type.strip(),
                     payload.file_size_bytes,
                     user_id,
-                    DocumentsService._normalize_optional_text(payload.document_type),
-                    DocumentsService._normalize_optional_text(payload.audience_scope),
-                    DocumentsService._normalize_optional_text(payload.department),
+                    payload.document_type,
+                    payload.audience_scope,
+                    payload.department,
                 )
         except asyncpg.PostgresError as exc:
             logger.error(
                 "DOCUMENTS: create upload url failed",
                 extra={
                     "user_id": user_id,
-                    "filename": payload.filename,
+                    "filename_hash": hash_sensitive_value(payload.filename),
                     "sqlstate": exc.sqlstate,
                     "error": str(exc),
                 },
@@ -160,13 +161,26 @@ class DocumentsService:
                 await DocumentsService._require_documents_manager(connection, user_id)
                 document_row = await DocumentsService._get_document_row(connection, document_id)
 
-                object_exists = await StorageService.object_exists(
+                object_info = await StorageService.get_object_info(
                     document_row["bucket_name"],
                     document_row["storage_object_path"],
                 )
 
-                if not object_exists:
+                if object_info is None:
                     raise RuntimeError("Storage object missing")
+
+                validated_object = DocumentsService._validate_uploaded_object(
+                    document_row=document_row,
+                    object_info=object_info,
+                )
+                document_row["mime_type"] = validated_object["mime_type"]
+                document_row["file_size_bytes"] = validated_object["file_size_bytes"]
+                await DocumentsService._apply_validated_storage_metadata(
+                    connection=connection,
+                    document_id=document_id,
+                    mime_type=validated_object["mime_type"],
+                    file_size_bytes=validated_object["file_size_bytes"],
+                )
 
                 return await DocumentIngestionService.finalize_document(
                     connection,
@@ -364,10 +378,13 @@ class DocumentsService:
     @staticmethod
     def _validate_upload_request(payload: CreateUploadUrlRequest) -> None:
         extension = Path(payload.filename.strip()).suffix.lower()
-        mime_type = payload.mime_type.strip().lower()
+        mime_type = DocumentsService._normalize_mime_type(payload.mime_type)
 
         if payload.file_size_bytes <= 0:
             raise RuntimeError("Invalid input")
+
+        if payload.file_size_bytes > settings.document_upload_max_file_size_bytes:
+            raise RuntimeError("File exceeds upload size limit")
 
         if extension not in SUPPORTED_EXTENSIONS:
             raise RuntimeError("Unsupported file type")
@@ -406,9 +423,131 @@ class DocumentsService:
         return Path(payload.filename.strip()).stem.strip() or "Untitled Document"
 
     @staticmethod
-    def _normalize_optional_text(value: str | None) -> str | None:
-        if value is None:
-            return None
+    def _extract_storage_size_bytes(object_info: Dict[str, Any]) -> Optional[int]:
+        """
+        Resolve object size from Supabase storage info response variants.
+        """
 
-        normalized = value.strip()
-        return normalized or None
+        metadata = object_info.get("metadata")
+
+        size_candidates = (
+            object_info.get("size"),
+            object_info.get("file_size"),
+            metadata.get("size") if isinstance(metadata, dict) else None,
+        )
+
+        for candidate in size_candidates:
+            if candidate is None:
+                continue
+
+            try:
+                size = int(candidate)
+            except (TypeError, ValueError):
+                continue
+
+            if size >= 0:
+                return size
+
+        return None
+
+    @staticmethod
+    def _extract_storage_mime_type(object_info: Dict[str, Any]) -> Optional[str]:
+        """
+        Resolve object MIME type from Supabase storage info response variants.
+        """
+
+        metadata = object_info.get("metadata")
+
+        mime_candidates = (
+            object_info.get("mimetype"),
+            object_info.get("mime_type"),
+            metadata.get("mimetype") if isinstance(metadata, dict) else None,
+            metadata.get("mimeType") if isinstance(metadata, dict) else None,
+        )
+
+        for candidate in mime_candidates:
+            if isinstance(candidate, str) and candidate.strip():
+                return DocumentsService._normalize_mime_type(candidate)
+
+        return None
+
+    @staticmethod
+    def _normalize_mime_type(value: str) -> str:
+        """
+        Normalize MIME types into a stable comparison form.
+        """
+
+        return value.split(";", 1)[0].strip().lower()
+
+    @staticmethod
+    def _validate_uploaded_object(
+        *,
+        document_row: Dict[str, Any],
+        object_info: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Enforce storage-level upload policy during finalize/index.
+        """
+
+        expected_extension = Path(str(document_row["storage_object_path"])).suffix.lower()
+        expected_mime_type = DocumentsService._normalize_mime_type(
+            str(document_row["mime_type"] or "")
+        )
+        expected_file_size = int(document_row["file_size_bytes"] or 0)
+        stored_file_size = DocumentsService._extract_storage_size_bytes(object_info)
+        stored_mime_type = DocumentsService._extract_storage_mime_type(object_info)
+
+        if expected_extension not in SUPPORTED_EXTENSIONS:
+            raise RuntimeError("Unsupported file type")
+
+        if stored_file_size is None or stored_file_size <= 0:
+            raise RuntimeError("Stored object violates upload policy")
+
+        if stored_file_size > settings.document_upload_max_file_size_bytes:
+            raise RuntimeError("File exceeds upload size limit")
+
+        if expected_file_size > 0 and stored_file_size != expected_file_size:
+            raise RuntimeError("Stored object violates upload policy")
+
+        if not stored_mime_type:
+            raise RuntimeError("Stored object violates upload policy")
+
+        if not (
+            stored_mime_type in SUPPORTED_MIME_TYPES
+            or stored_mime_type.startswith(SUPPORTED_MIME_PREFIXES)
+        ):
+            raise RuntimeError("Unsupported file type")
+
+        if expected_mime_type and stored_mime_type != expected_mime_type:
+            raise RuntimeError("Stored object violates upload policy")
+
+        return {
+            "file_size_bytes": stored_file_size,
+            "mime_type": stored_mime_type,
+        }
+
+    @staticmethod
+    async def _apply_validated_storage_metadata(
+        *,
+        connection: asyncpg.Connection,
+        document_id: UUID,
+        mime_type: str,
+        file_size_bytes: int,
+    ) -> None:
+        """
+        Persist validated storage metadata before indexing proceeds.
+        """
+
+        await connection.execute(
+            """
+            update library.university_documents
+            set
+                mime_type = $2::text,
+                file_size_bytes = $3::bigint,
+                updated_at = now()
+            where id = $1::uuid
+            """,
+            document_id,
+            mime_type,
+            file_size_bytes,
+        )

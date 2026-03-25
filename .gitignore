@@ -46,6 +46,8 @@ Thumbs.db
 
 # Temporary files
 structure.txt
+AGENT.md
+Plan.md
 *.log
 *.db
 *.sqlite3
