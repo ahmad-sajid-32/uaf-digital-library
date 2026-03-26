@@ -47,7 +47,11 @@ export async function middleware(request: NextRequest) {
     pathname === "/auth/access-denied" ||
     pathname === "/auth/session-expired"
   ) {
-    const redirectPath = getAuthStateRouteRedirectPath(pathname, user);
+    const redirectPath = getAuthStateRouteRedirectPath(
+      pathname,
+      user,
+      request.nextUrl.searchParams.get("reason"),
+    );
 
     if (redirectPath) {
       return buildRedirectResponse(request, redirectPath, response);

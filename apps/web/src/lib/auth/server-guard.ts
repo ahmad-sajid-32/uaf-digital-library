@@ -100,13 +100,16 @@ export function getProtectedRoleRedirectPath(
     case "access_denied":
       return "/auth/access-denied";
     case "authenticated":
-      return auth.role === requiredRole ? null : "/auth/access-denied";
+      return auth.role === requiredRole
+        ? null
+        : "/auth/access-denied?reason=forbidden";
   }
 }
 
 export function getAuthStateRouteRedirectPath(
   route: AuthStateRoute,
   user: User | null,
+  reason?: string | null,
 ): string | null {
   const auth = resolveServerAuthResolution(user);
 
@@ -118,6 +121,19 @@ export function getAuthStateRouteRedirectPath(
         : auth.status === "access_denied"
           ? "/auth/access-denied"
           : null;
+  }
+
+  if (route === "/auth/access-denied" && reason === "forbidden") {
+    switch (auth.status) {
+      case "authenticated":
+        return auth.role ? null : "/auth/access-denied";
+      case "access_denied":
+        return null;
+      case "verification_required":
+        return "/auth/verify-required";
+      default:
+        return "/login";
+    }
   }
 
   if (route === "/auth/verify-required") {

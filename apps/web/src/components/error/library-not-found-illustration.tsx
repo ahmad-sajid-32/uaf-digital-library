@@ -2,14 +2,14 @@
 /**
  * Branded illustration for the application 404 surface.
  *
- * The visual direction stays academic and calm: a floating book, a broken
- * route line, a magnifier, and quiet bookshelf silhouettes. It intentionally
- * avoids meme/comedic error-page tropes so the screen remains consistent with
- * the institutional product tone.
+ * The visual direction stays academic and calm: a floating open book, a broken
+ * route line, a magnifier, and a restrained warning marker. The background
+ * number and bookshelf layer remain unchanged so the error system feels
+ * consistent across screens.
  */
 
 import * as React from "react";
-import { Search, TriangleAlert } from "lucide-react";
+import { BookOpenText, Search, TriangleAlert } from "lucide-react";
 
 export function LibraryNotFoundIllustration(): React.JSX.Element {
   return (
@@ -42,50 +42,72 @@ export function LibraryNotFoundIllustration(): React.JSX.Element {
 
       <svg
         viewBox="0 0 520 260"
-        className="pointer-events-none hidden md:block absolute inset-0 h-full w-full"
+        className="hidden lg:block pointer-events-none absolute inset-0 h-full w-full"
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id="routeLine" x1="0%" x2="100%" y1="0%" y2="0%">
+          <linearGradient id="routeLine404" x1="0%" x2="100%" y1="0%" y2="0%">
             <stop offset="0%" stopColor="hsl(var(--primary))" />
             <stop offset="100%" stopColor="hsl(var(--warning))" />
           </linearGradient>
         </defs>
         <path
-          d="M76 72 C126 58, 170 88, 218 98"
+          d="M74 86 C116 62, 164 78, 214 102"
           fill="none"
-          stroke="url(#routeLine)"
-          strokeDasharray="8 10"
-          strokeLinecap="round"
-          strokeWidth="3.5"
-          opacity="0.92"
-        />
-        <path
-          d="M304 106 C344 118, 386 92, 440 88"
-          fill="none"
-          stroke="url(#routeLine)"
-          strokeDasharray="8 10"
+          stroke="url(#routeLine404)"
+          strokeDasharray="9 10"
           strokeLinecap="round"
           strokeWidth="3.5"
           opacity="0.72"
         />
-        <circle cx="255" cy="102" r="5" fill="hsl(var(--warning))" />
+        <path
+          d="M308 106 C348 88, 390 80, 444 98"
+          fill="none"
+          stroke="url(#routeLine404)"
+          strokeDasharray="9 10"
+          strokeLinecap="round"
+          strokeWidth="3.5"
+          opacity="0.72"
+        />
+        <circle cx="258" cy="104" r="5" fill="hsl(var(--warning))" />
       </svg>
 
-      <div className="relative hidden  md:flex w-full max-w-120 items-center justify-between gap-4">
-        <div className="relative mt-16 h-28 w-28 shrink-0 rounded-full border border-primary/35 bg-primary/10 shadow-[0_0_50px_hsl(var(--primary)/0.26)]">
-          <div className="absolute inset-4 rounded-full border border-border/50 bg-background/75" />
-          <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-warning/30 bg-warning/10 text-warning">
-            <Search className="h-6 w-6" />
+      <div className="relative flex w-full items-center justify-center md:hidden">
+        <div className="relative flex h-36 w-36 items-center justify-center rounded-full border border-primary/25 bg-primary/10 shadow-[0_0_36px_hsl(var(--primary)/0.2)]">
+          <div className="absolute inset-5 rounded-full border border-border/50 bg-background/80" />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-[1.6rem] border border-border/50 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--secondary)))] text-primary shadow-[0_18px_40px_-22px_hsl(var(--foreground)/0.28)]">
+            <BookOpenText className="h-9 w-9" />
           </div>
+          <div className="absolute right-5 top-6 flex h-10 w-10 items-center justify-center rounded-full border border-warning/30 bg-warning/10 text-warning">
+            <Search className="h-4 w-4" />
+          </div>
+          <div className="absolute bottom-6 left-5 flex h-10 w-10 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger">
+            <TriangleAlert className="h-4 w-4" />
+          </div>
+        </div>
+      </div>
+
+      <div className="relative hidden w-full max-w-118 items-center justify-between gap-5 md:flex">
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-warning/25 bg-warning/10 shadow-[0_0_40px_hsl(var(--warning)/0.16)]">
+          <div className="absolute inset-4 rounded-full border border-border/50 bg-warning/25" />
+          <Search className="relative h-8 w-8 text-warning" />
         </div>
 
         <div className="relative flex-1">
-          <div className="absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl" />
+          <div className="absolute inset-x-10 top-1/2 h-28 -translate-y-1/2 rounded-full bg-primary/18 blur-3xl" />
+          <div className="relative mx-auto h-46 w-full max-w-70">
+            <div className="absolute left-1/2 top-1 h-5 w-26 -translate-x-1/2 rounded-full bg-warning/24 blur-xl" />
+            <div className="absolute inset-x-[18%] top-[12%] h-[72%] rounded-4xl border border-border/60 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--muted)))] shadow-[0_30px_60px_-28px_hsl(var(--foreground)/0.3)]" />
+            <div className="absolute inset-x-[24%] top-[20%] h-[56%] rounded-[1.6rem] border border-border/45 bg-background/82" />
+            <div className="absolute left-1/2 top-[34%] flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-3xl border border-primary/28 bg-primary/10 text-primary shadow-[0_0_30px_hsl(var(--primary)/0.2)]">
+              <BookOpenText className="h-8 w-8" />
+            </div>
+          </div>
         </div>
 
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-danger/35 bg-danger/10 text-danger shadow-[0_0_32px_hsl(var(--danger)/0.22)]">
-          <TriangleAlert className="h-6 w-6" />
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-danger/28 bg-danger/10 text-danger shadow-[0_0_32px_hsl(var(--danger)/0.18)]">
+          <TriangleAlert className="h-8 w-8" />
+          <div className="absolute inset-2 rounded-full border border-danger/18" />
         </div>
       </div>
     </div>

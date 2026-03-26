@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { Compass, Home } from "lucide-react";
+import { Compass } from "lucide-react";
 
 import { ErrorPageShell } from "@/components/error/error-page-shell";
 import { LibraryNotFoundIllustration } from "@/components/error/library-not-found-illustration";
