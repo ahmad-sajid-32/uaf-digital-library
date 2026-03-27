@@ -1,4 +1,4 @@
-// apps/web/src/hooks/use-mobile.ts
+// apps/web/src/hooks/useMobile.ts
 /**
  * Responsive hook for detecting mobile viewport width.
  *
@@ -13,7 +13,7 @@ import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;
 
-export function useIsMobile(): boolean {
+export function useMobile(): boolean {
   const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {

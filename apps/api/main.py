@@ -31,6 +31,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from core.config import settings
 from core.logging import configure_logging, get_logger
 from core.database import Database
+from core.account_access import AccountAccessMiddleware
 from core.middleware import AuthenticationMiddleware
 from core.rate_limit import RateLimitExceededError, build_rate_limit_response
 from core.security import SecurityHeadersMiddleware
@@ -122,6 +123,7 @@ app.add_middleware(
     allow_methods=list(settings.cors_allowed_methods),
     allow_headers=list(settings.cors_allowed_headers),
 )
+app.add_middleware(AccountAccessMiddleware)
 app.add_middleware(AuthenticationMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 

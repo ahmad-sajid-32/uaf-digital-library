@@ -1,4 +1,4 @@
-// apps/web/src/hooks/use-auth-session-actions.ts
+// apps/web/src/hooks/useAuthSessionActions.ts
 /**
  * Centralized client auth session actions.
  *
@@ -21,7 +21,7 @@ import {
 import {
   isSessionExpiredError,
 } from "@/lib/auth/session-errors";
-import { useAppAuth } from "@/hooks/use-app-auth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 interface LogoutOptions {
   redirectTo?: string;

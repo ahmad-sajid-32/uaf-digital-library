@@ -1,5 +1,5 @@
-import { RoleDashboardPlaceholder } from "@/components/dashboard/role-dashboard-placeholder";
+import { RoleDashboardRoot } from "@/components/dashboard/role-dashboard-root";
 
 export default function LibrarianDashboardPage() {
-  return <RoleDashboardPlaceholder role="librarian" />;
+  return <RoleDashboardRoot role="librarian" />;
 }

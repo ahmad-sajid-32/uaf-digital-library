@@ -1,5 +1,5 @@
-import { RoleDashboardPlaceholder } from "@/components/dashboard/role-dashboard-placeholder";
+import { RoleDashboardRoot } from "@/components/dashboard/role-dashboard-root";
 
 export default function StudentDashboardPage() {
-  return <RoleDashboardPlaceholder role="student" />;
+  return <RoleDashboardRoot role="student" />;
 }

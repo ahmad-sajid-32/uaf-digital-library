@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { Error500Page } from "@/components/error/error-500-page";
 import { getRoleDashboardPath } from "@/lib/auth/server-guard";
-import { useAppAuth } from "@/hooks/use-app-auth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 export default function AppError({
   error,

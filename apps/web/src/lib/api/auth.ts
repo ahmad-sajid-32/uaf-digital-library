@@ -1,6 +1,9 @@
 import type { EmailOtpType, Session, User } from "@supabase/supabase-js";
 
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  getSupabaseBrowserClient,
+  readSupabaseBrowserSession,
+} from "@/lib/supabase/client";
 
 export interface SignInResult {
   session: Session | null;
@@ -17,6 +20,7 @@ interface DeletedAccountStatusResponse {
   data: {
     has_account: boolean;
     is_deleted: boolean;
+    is_inactive: boolean;
   };
   timestamp_ms: number;
 }
@@ -25,6 +29,7 @@ interface AccountStatusResult {
   resolved: boolean;
   hasAccount: boolean;
   isDeleted: boolean;
+  isInactive: boolean;
 }
 
 function toSafeErrorMessage(error: unknown, fallback: string): string {
@@ -63,6 +68,7 @@ async function getAccountStatus(email: string): Promise<AccountStatusResult> {
         resolved: false,
         hasAccount: false,
         isDeleted: false,
+        isInactive: false,
       };
     }
 
@@ -71,13 +77,71 @@ async function getAccountStatus(email: string): Promise<AccountStatusResult> {
       resolved: true,
       hasAccount: Boolean(payload.data?.has_account),
       isDeleted: Boolean(payload.data?.is_deleted),
+      isInactive: Boolean(payload.data?.is_inactive),
     };
   } catch {
     return {
       resolved: false,
       hasAccount: false,
       isDeleted: false,
+      isInactive: false,
     };
+  }
+}
+
+async function rejectPostSignInSession(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  message: string,
+): Promise<never> {
+  // Post-auth account-state failures must tear down the fresh browser session
+  // before control returns to the login UI.
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    throw new Error(
+      "Unable to clear the rejected sign-in session. Please refresh and try again.",
+    );
+  }
+
+  throw new Error(message);
+}
+
+async function enforcePostSignInAccountState(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  email: string,
+): Promise<void> {
+  const accountStatus = await getAccountStatus(email);
+
+  // A successful Supabase password check is not enough for this app.
+  // The library account can still be inactive, deleted, or otherwise
+  // unavailable at the application layer. Do not keep the new session
+  // unless the account-state API confirms the user is allowed in.
+  if (!accountStatus.resolved) {
+    await rejectPostSignInSession(
+      supabase,
+      "Unable to verify your account status right now. Please try again.",
+    );
+  }
+
+  if (accountStatus.isDeleted) {
+    await rejectPostSignInSession(
+      supabase,
+      "Your account has been deleted. Contact an administrator to recreate your account.",
+    );
+  }
+
+  if (accountStatus.isInactive) {
+    await rejectPostSignInSession(
+      supabase,
+      "Your account is inactive. Contact an administrator to restore access.",
+    );
+  }
+
+  if (!accountStatus.hasAccount) {
+    await rejectPostSignInSession(
+      supabase,
+      "Unable to verify your account status right now. Please try again.",
+    );
   }
 }
 
@@ -100,6 +164,12 @@ export async function signInWithPassword(
       );
     }
 
+    if (accountStatus.isInactive) {
+      throw new Error(
+        "Your account is inactive. Contact an administrator to restore access.",
+      );
+    }
+
     if (accountStatus.resolved && !accountStatus.hasAccount) {
       throw new Error("No account is associated with this email address.");
     }
@@ -112,6 +182,8 @@ export async function signInWithPassword(
       toSafeErrorMessage(error, "Unable to sign in. Please verify your credentials."),
     );
   }
+
+  await enforcePostSignInAccountState(supabase, email);
 
   return {
     session: data.session,
@@ -136,6 +208,12 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (accountStatus.isDeleted) {
     throw new Error(
       "Your account has been deleted. Contact an administrator to recreate your account.",
+    );
+  }
+
+  if (accountStatus.isInactive) {
+    throw new Error(
+      "Your account is inactive. Contact an administrator to restore access.",
     );
   }
 
@@ -190,8 +268,7 @@ export async function verifyPasswordOtp(
 }
 
 export async function getSession(): Promise<SessionResult> {
-  const supabase = getSupabaseBrowserClient();
-  const { data, error } = await supabase.auth.getSession();
+  const { session, error } = await readSupabaseBrowserSession();
 
   if (error) {
     throw new Error(
@@ -199,5 +276,5 @@ export async function getSession(): Promise<SessionResult> {
     );
   }
 
-  return { session: data.session };
+  return { session };
 }

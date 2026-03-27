@@ -34,10 +34,12 @@ Core business logic remains in PostgreSQL and Supabase.
   Manages the shared `asyncpg` pool.
 - `core/middleware.py`
   Validates bearer tokens and injects request auth context.
+- `core/account_access.py`
+  Enforces application-level active/inactive account access after JWT validation.
 - `modules/books`
   Public catalog routes and RPC access.
 - `modules/auth`
-  Admin-only user provisioning routes and Supabase Admin API integration.
+  Admin-managed user read/create/update/status/delete routes and Supabase Admin API integration.
 
 ## Local Setup
 
@@ -83,12 +85,29 @@ Default local URL:
 
 - `GET /health`
 - `GET /api/books`
+- `POST /api/auth/account-status`
 
 ### Admin-only
 
+- `GET /api/admin/users`
+- `GET /api/admin/users/{user_id}`
 - `POST /api/admin/users/students`
 - `POST /api/admin/users/librarians`
 - `POST /api/admin/users/admins`
+- `PATCH /api/admin/users/{user_id}/profile`
+- `PATCH /api/admin/users/{user_id}/status`
+- `DELETE /api/admin/users/{user_id}`
+
+## Admin User Contract Notes
+
+- `GET /api/admin/users` returns one stable mixed-role list shape for admin tables.
+- `GET /api/admin/users/{user_id}` returns one role-explicit detail shape:
+  - student users expose `student_profile`
+  - librarian users expose `librarian_profile`
+  - admin users expose `admin_profile`
+- Delete and deactivate remain separate actions:
+  - delete removes the account flow
+  - deactivate keeps the account record but blocks normal use
 
 ## Logging
 

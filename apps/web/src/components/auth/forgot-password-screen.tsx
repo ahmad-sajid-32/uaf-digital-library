@@ -27,14 +27,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageTransitionLoader } from "@/components/ui/page-transition-loader";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
-import { useGuestRouteState } from "@/hooks/use-guest-route-state";
+import { useGuestRouteState } from "@/hooks/useGuestRouteState";
 import { useForgotPassword } from "@/hooks/useAuth";
 
 export function ForgotPasswordScreen(): React.JSX.Element {
   const router = useRouter();
   const { submit, loading, error, success } = useForgotPassword();
   const { loading: routeLoading, redirectPath, redirectMessage } =
-    useGuestRouteState("forgot-password");
+    useGuestRouteState("forgot-password", {
+      respectServerGuestRender: true,
+    });
   const [email, setEmail] = React.useState("");
   const [redirecting, setRedirecting] = React.useState(false);
 

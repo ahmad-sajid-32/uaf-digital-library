@@ -16,7 +16,7 @@ import { getPostLoginRedirectPath } from "@/lib/auth/navigation";
 import { persistAuthPreferences } from "@/lib/auth/preferences";
 import { clearClientAuthTransientState } from "@/lib/auth/session-client";
 import { resolveDisplayTimezone } from "@/lib/auth/timezone";
-import { useAppAuth } from "@/hooks/use-app-auth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 export interface PasswordChecks {
   minLength: boolean;
@@ -53,11 +53,12 @@ export function useLogin(): {
       rememberMe?: boolean;
     },
   ) => Promise<string | null>;
+  handshakePending: boolean;
   loading: boolean;
   error: string | null;
 } {
   const { refreshAuthState } = useAppAuth();
-  const [loading, setLoading] = React.useState(false);
+  const [handshakePending, setHandshakePending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const submit = React.useCallback(
@@ -71,7 +72,7 @@ export function useLogin(): {
       const rememberMe = options?.rememberMe ?? false;
       const preferredTimezone = resolveDisplayTimezone();
 
-      setLoading(true);
+      setHandshakePending(true);
       setError(null);
 
       try {
@@ -90,6 +91,7 @@ export function useLogin(): {
 
         return getPostLoginRedirectPath(authState);
       } catch (submitError: unknown) {
+        await refreshAuthState();
         setError(
           getErrorMessage(
             submitError,
@@ -98,13 +100,18 @@ export function useLogin(): {
         );
         return null;
       } finally {
-        setLoading(false);
+        setHandshakePending(false);
       }
     },
     [refreshAuthState],
   );
 
-  return { submit, loading, error };
+  return {
+    submit,
+    handshakePending,
+    loading: handshakePending,
+    error,
+  };
 }
 
 export function useForgotPassword(): {

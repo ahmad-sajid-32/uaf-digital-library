@@ -1,4 +1,4 @@
-// apps/web/src/hooks/use-guest-route-state.ts
+// apps/web/src/hooks/useGuestRouteState.ts
 /**
  * Client hook for guest-route auth state checks.
  *
@@ -12,12 +12,19 @@
 
 import * as React from "react";
 
-import type { GuestAuthRoute } from "@/lib/auth/route-state";
+import type {
+  GuestAuthRoute,
+  GuestRouteOptions,
+} from "@/lib/auth/route-state";
 import { resolveGuestRouteState } from "@/lib/auth/route-state";
-import { useAppAuth } from "@/hooks/use-app-auth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
-export function useGuestRouteState(route: GuestAuthRoute) {
+export function useGuestRouteState(
+  route: GuestAuthRoute,
+  options: GuestRouteOptions = {},
+) {
   const { auth, hydrated } = useAppAuth();
+  const suppressRedirect = options.suppressRedirect ?? false;
 
   return React.useMemo(() => {
     const resolution = resolveGuestRouteState(
@@ -28,6 +35,9 @@ export function useGuestRouteState(route: GuestAuthRoute) {
             ...auth,
             status: "unknown",
           },
+      {
+        suppressRedirect,
+      },
     );
 
     return {
@@ -35,5 +45,5 @@ export function useGuestRouteState(route: GuestAuthRoute) {
       auth,
       hydrated,
     };
-  }, [auth, hydrated, route]);
+  }, [auth, hydrated, route, suppressRedirect]);
 }

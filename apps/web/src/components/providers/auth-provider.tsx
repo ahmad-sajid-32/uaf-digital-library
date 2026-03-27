@@ -17,7 +17,11 @@ import type { Session } from "@supabase/supabase-js";
 import { mapSessionToAppAuthState } from "@/lib/auth/normalize-auth";
 import { readAuthPreferenceSnapshot } from "@/lib/auth/preferences";
 import type { AppAuthState } from "@/lib/auth/types";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  getSupabaseBrowserClient,
+  readSupabaseBrowserSession,
+  readSupabaseBrowserUser,
+} from "@/lib/supabase/client";
 
 interface AuthContextValue {
   auth: AppAuthState;
@@ -26,6 +30,11 @@ interface AuthContextValue {
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
+const FALLBACK_AUTH_CONTEXT: AuthContextValue = {
+  auth: getUnknownAuthState(),
+  hydrated: false,
+  refreshAuthState: async () => undefined,
+};
 
 function mapClientSession(session: Session | null): AppAuthState {
   const preferences = readAuthPreferenceSnapshot();
@@ -50,30 +59,51 @@ export function AuthProvider({
 }): React.JSX.Element {
   const [auth, setAuth] = React.useState<AppAuthState>(getUnknownAuthState);
   const [hydrated, setHydrated] = React.useState(false);
+  const refreshInFlightRef = React.useRef<Promise<void> | null>(null);
 
   const refreshAuthState = React.useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
-    const { data, error } = await supabase.auth.getSession();
-
-    if (error) {
-      React.startTransition(() => {
-        setAuth(mapClientSession(null));
-        setHydrated(true);
-      });
-      return;
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
     }
 
-    React.startTransition(() => {
-      setAuth(mapClientSession(data.session));
-      setHydrated(true);
+    const refreshPromise = (async () => {
+      const { user, error: userError } = await readSupabaseBrowserUser();
+
+      if (userError || !user) {
+        React.startTransition(() => {
+          setAuth(mapClientSession(null));
+          setHydrated(true);
+        });
+        return;
+      }
+
+      const { session, error } = await readSupabaseBrowserSession();
+
+      if (error || !session) {
+        React.startTransition(() => {
+          setAuth(mapClientSession(null));
+          setHydrated(true);
+        });
+        return;
+      }
+
+      React.startTransition(() => {
+        setAuth(mapClientSession(session));
+        setHydrated(true);
+      });
+    })().finally(() => {
+      refreshInFlightRef.current = null;
     });
+
+    refreshInFlightRef.current = refreshPromise;
+    return refreshPromise;
   }, []);
 
   React.useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     let isMounted = true;
 
-    void refreshAuthState();
+    void refreshAuthState().catch(() => undefined);
 
     const {
       data: { subscription },
@@ -86,11 +116,13 @@ export function AuthProvider({
         case "SIGNED_IN":
         case "TOKEN_REFRESHED":
         case "USER_UPDATED":
-        case "INITIAL_SESSION":
           React.startTransition(() => {
             setAuth(mapClientSession(session));
             setHydrated(true);
           });
+          return;
+        case "INITIAL_SESSION":
+          void refreshAuthState().catch(() => undefined);
           return;
         case "SIGNED_OUT":
           React.startTransition(() => {
@@ -124,11 +156,5 @@ export function AuthProvider({
 }
 
 export function useAuthContext(): AuthContextValue {
-  const context = React.useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuthContext must be used within an AuthProvider.");
-  }
-
-  return context;
+  return React.useContext(AuthContext) ?? FALLBACK_AUTH_CONTEXT;
 }

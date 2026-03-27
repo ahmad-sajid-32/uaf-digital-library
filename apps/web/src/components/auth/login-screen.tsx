@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageTransitionLoader } from "@/components/ui/page-transition-loader";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
-import { useGuestRouteState } from "@/hooks/use-guest-route-state";
+import { useGuestRouteState } from "@/hooks/useGuestRouteState";
 import { useLogin } from "@/hooks/useAuth";
 
 const STUDENT_ASSISTANCE_EMAIL = "ahmadsajid41324@gmail.com";
@@ -40,9 +40,12 @@ const STUDENT_ASSISTANCE_COMPOSE_URL =
 export function LoginScreen(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { submit, loading, error } = useLogin();
+  const { submit, loading, handshakePending, error } = useLogin();
   const { auth, loading: routeLoading, redirectPath, redirectMessage } =
-    useGuestRouteState("login");
+    useGuestRouteState("login", {
+      suppressRedirect: handshakePending || Boolean(error),
+      respectServerGuestRender: true,
+    });
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -119,11 +122,11 @@ export function LoginScreen(): React.JSX.Element {
   }, [auth.rememberMe, routeLoading]);
 
   React.useEffect(() => {
-    if (!routeLoading && redirectPath) {
+    if (!routeLoading && !handshakePending && !error && redirectPath) {
       setRedirecting(true);
       router.replace(redirectPath);
     }
-  }, [redirectPath, routeLoading, router]);
+  }, [redirectPath, error, handshakePending, routeLoading, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -155,6 +158,7 @@ export function LoginScreen(): React.JSX.Element {
       });
     }
 
+    setRedirecting(true);
     router.replace(nextPath);
   };
 

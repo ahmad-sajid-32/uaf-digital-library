@@ -1,4 +1,4 @@
-// apps/web/src/hooks/use-app-auth.ts
+// apps/web/src/hooks/useAppAuth.ts
 /**
  * Thin hook wrapper for the normalized client auth store.
  *

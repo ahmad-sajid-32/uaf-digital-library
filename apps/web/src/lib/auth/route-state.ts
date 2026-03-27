@@ -23,11 +23,19 @@ export interface GuestRouteResolution {
   redirectMessage: string | null;
 }
 
+export interface GuestRouteOptions {
+  suppressRedirect?: boolean;
+  respectServerGuestRender?: boolean;
+}
+
 export function resolveGuestRouteState(
   route: GuestAuthRoute,
   auth: AppAuthState,
+  options: GuestRouteOptions = {},
 ): GuestRouteResolution {
   const { status } = auth;
+  const suppressRedirect = options.suppressRedirect ?? false;
+  const respectServerGuestRender = options.respectServerGuestRender ?? false;
 
   if (status === "unknown") {
     return {
@@ -38,6 +46,14 @@ export function resolveGuestRouteState(
   }
 
   if (route === "reset-password" || route === "setup-password") {
+    return {
+      loading: false,
+      redirectPath: null,
+      redirectMessage: null,
+    };
+  }
+
+  if (suppressRedirect || respectServerGuestRender) {
     return {
       loading: false,
       redirectPath: null,

@@ -13,8 +13,8 @@ import * as React from "react";
 import { MailWarning, LogOut } from "lucide-react";
 
 import { AuthStateScreen } from "@/components/auth/auth-state-screen";
-import { useAuthSessionActions } from "@/hooks/use-auth-session-actions";
-import { useAppAuth } from "@/hooks/use-app-auth";
+import { useAuthSessionActions } from "@/hooks/useAuthSessionActions";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 export function VerifyRequiredScreen(): React.JSX.Element {
   const { auth } = useAppAuth();
