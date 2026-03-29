@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
+from core.rate_limit import enforce_rate_limit
 from modules.fines.schemas import (
     EmptyData,
     PAY_FINE_SUCCESS_EXAMPLE,
@@ -61,9 +62,27 @@ def _resolve_runtime_error_status(message: str) -> int:
         return status.HTTP_409_CONFLICT
 
     if "Invalid waive reason" in message:
-        return status.HTTP_400_BAD_REQUEST
+        return status.HTTP_422_UNPROCESSABLE_ENTITY
 
     return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+async def _enforce_fine_settlement_rate_limit(
+    request: Request,
+    *,
+    user_id: str,
+    subject_hint: str,
+) -> None:
+    """
+    Apply fine-settlement throttling for pay and waive actions.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier="fine_settlement",
+        user_id=user_id,
+        subject_hint=subject_hint,
+    )
 
 
 @router.post(
@@ -73,15 +92,27 @@ def _resolve_runtime_error_status(message: str) -> int:
         200: {
             "description": "Fine marked as paid",
             "content": {"application/json": {"example": PAY_FINE_SUCCESS_EXAMPLE}},
-        }
+        },
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Fine not found"},
+        409: {"description": "Fine is already resolved or not pending"},
+        422: {"description": "Validation Error"},
+        429: {"description": "Too Many Requests"},
+        500: {"description": "Internal Server Error"},
     },
 )
 async def pay_fine(
     request: Request,
     fine_id: UUID,
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> SimpleMessageResponse:
     user_id = _require_user_id(request)
+    await _enforce_fine_settlement_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=f"pay:{fine_id}",
+    )
 
     logger.info(
         "FINES: pay fine request",
@@ -91,6 +122,8 @@ async def pay_fine(
             "user_id": user_id,
             "fine_id": str(fine_id),
             "action": "pay",
+            "rate_limit_tier": "fine_settlement",
+            "outcome": "request",
         },
     )
 
@@ -108,6 +141,8 @@ async def pay_fine(
                 "action": "pay",
                 "error": str(exc),
                 "status_code": http_status,
+                "rate_limit_tier": "fine_settlement",
+                "outcome": "failed",
             },
         )
         raise HTTPException(
@@ -123,6 +158,8 @@ async def pay_fine(
             "user_id": user_id,
             "fine_id": str(fine_id),
             "action": "pay",
+            "rate_limit_tier": "fine_settlement",
+            "outcome": "success",
         },
     )
 
@@ -141,16 +178,28 @@ async def pay_fine(
         200: {
             "description": "Fine waived",
             "content": {"application/json": {"example": WAIVE_FINE_SUCCESS_EXAMPLE}},
-        }
+        },
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Fine not found"},
+        409: {"description": "Fine is already resolved or not pending"},
+        422: {"description": "Validation Error"},
+        429: {"description": "Too Many Requests"},
+        500: {"description": "Internal Server Error"},
     },
 )
 async def waive_fine(
     request: Request,
     fine_id: UUID,
     payload: WaiveFineRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> SimpleMessageResponse:
     user_id = _require_user_id(request)
+    await _enforce_fine_settlement_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=f"waive:{fine_id}",
+    )
 
     logger.info(
         "FINES: waive fine request",
@@ -160,6 +209,8 @@ async def waive_fine(
             "user_id": user_id,
             "fine_id": str(fine_id),
             "action": "waive",
+            "rate_limit_tier": "fine_settlement",
+            "outcome": "request",
         },
     )
 
@@ -177,6 +228,8 @@ async def waive_fine(
                 "action": "waive",
                 "error": str(exc),
                 "status_code": http_status,
+                "rate_limit_tier": "fine_settlement",
+                "outcome": "failed",
             },
         )
         raise HTTPException(
@@ -192,6 +245,8 @@ async def waive_fine(
             "user_id": user_id,
             "fine_id": str(fine_id),
             "action": "waive",
+            "rate_limit_tier": "fine_settlement",
+            "outcome": "success",
         },
     )
 

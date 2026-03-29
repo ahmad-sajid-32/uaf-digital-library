@@ -111,6 +111,10 @@ class Settings:
     auth_public_rate_limit_max_requests: int
     admin_auth_rate_limit_window_seconds: int
     admin_auth_rate_limit_max_requests: int
+    fine_read_rate_limit_window_seconds: int
+    fine_read_rate_limit_max_requests: int
+    fine_settlement_rate_limit_window_seconds: int
+    fine_settlement_rate_limit_max_requests: int
     ai_retrieval_rate_limit_window_seconds: int
     ai_retrieval_rate_limit_max_requests: int
     ai_generation_rate_limit_window_seconds: int
@@ -119,7 +123,13 @@ class Settings:
     document_upload_rate_limit_max_requests: int
     document_finalize_rate_limit_window_seconds: int
     document_finalize_rate_limit_max_requests: int
+    document_read_rate_limit_window_seconds: int
+    document_read_rate_limit_max_requests: int
+    document_delete_rate_limit_window_seconds: int
+    document_delete_rate_limit_max_requests: int
     document_upload_max_file_size_bytes: int
+    document_signed_read_url_ttl_seconds: int
+    document_upload_stale_after_seconds: int
 
 
 def _get_required_env(var_name: str) -> str:
@@ -395,6 +405,18 @@ def load_settings() -> Settings:
         admin_auth_rate_limit_max_requests=int(
             _get_env("ADMIN_AUTH_RATE_LIMIT_MAX_REQUESTS", "40")
         ),
+        fine_read_rate_limit_window_seconds=int(
+            _get_env("FINE_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        fine_read_rate_limit_max_requests=int(
+            _get_env("FINE_READ_RATE_LIMIT_MAX_REQUESTS", "30")
+        ),
+        fine_settlement_rate_limit_window_seconds=int(
+            _get_env("FINE_SETTLEMENT_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        fine_settlement_rate_limit_max_requests=int(
+            _get_env("FINE_SETTLEMENT_RATE_LIMIT_MAX_REQUESTS", "15")
+        ),
         ai_retrieval_rate_limit_window_seconds=int(
             _get_env("AI_RETRIEVAL_RATE_LIMIT_WINDOW_SECONDS", "60")
         ),
@@ -419,8 +441,26 @@ def load_settings() -> Settings:
         document_finalize_rate_limit_max_requests=int(
             _get_env("DOCUMENT_FINALIZE_RATE_LIMIT_MAX_REQUESTS", "15")
         ),
+        document_read_rate_limit_window_seconds=int(
+            _get_env("DOCUMENT_READ_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        document_read_rate_limit_max_requests=int(
+            _get_env("DOCUMENT_READ_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        document_delete_rate_limit_window_seconds=int(
+            _get_env("DOCUMENT_DELETE_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        document_delete_rate_limit_max_requests=int(
+            _get_env("DOCUMENT_DELETE_RATE_LIMIT_MAX_REQUESTS", "15")
+        ),
         document_upload_max_file_size_bytes=int(
             _get_env("DOCUMENT_UPLOAD_MAX_FILE_SIZE_BYTES", "26214400")
+        ),
+        document_signed_read_url_ttl_seconds=int(
+            _get_env("DOCUMENT_SIGNED_READ_URL_TTL_SECONDS", "300")
+        ),
+        document_upload_stale_after_seconds=int(
+            _get_env("DOCUMENT_UPLOAD_STALE_AFTER_SECONDS", "86400")
         ),
     )
 

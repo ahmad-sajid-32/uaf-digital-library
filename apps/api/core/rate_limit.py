@@ -29,10 +29,14 @@ logger = get_logger(__name__)
 RateLimitTier = Literal[
     "auth_public",
     "admin_auth",
+    "fine_read",
+    "fine_settlement",
     "ai_retrieval",
     "ai_generation",
     "document_upload",
     "document_finalize",
+    "document_read",
+    "document_delete",
 ]
 
 
@@ -95,6 +99,16 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             max_requests=settings.admin_auth_rate_limit_max_requests,
             window_seconds=settings.admin_auth_rate_limit_window_seconds,
         ),
+        "fine_read": RateLimitPolicy(
+            tier="fine_read",
+            max_requests=settings.fine_read_rate_limit_max_requests,
+            window_seconds=settings.fine_read_rate_limit_window_seconds,
+        ),
+        "fine_settlement": RateLimitPolicy(
+            tier="fine_settlement",
+            max_requests=settings.fine_settlement_rate_limit_max_requests,
+            window_seconds=settings.fine_settlement_rate_limit_window_seconds,
+        ),
         "ai_retrieval": RateLimitPolicy(
             tier="ai_retrieval",
             max_requests=settings.ai_retrieval_rate_limit_max_requests,
@@ -114,6 +128,16 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="document_finalize",
             max_requests=settings.document_finalize_rate_limit_max_requests,
             window_seconds=settings.document_finalize_rate_limit_window_seconds,
+        ),
+        "document_read": RateLimitPolicy(
+            tier="document_read",
+            max_requests=settings.document_read_rate_limit_max_requests,
+            window_seconds=settings.document_read_rate_limit_window_seconds,
+        ),
+        "document_delete": RateLimitPolicy(
+            tier="document_delete",
+            max_requests=settings.document_delete_rate_limit_max_requests,
+            window_seconds=settings.document_delete_rate_limit_window_seconds,
         ),
     }
 

@@ -5,8 +5,7 @@ UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
 - Select the correct extraction strategy by MIME type and file extension.
-- Extract text from PDF, DOCX, TXT, and supported image formats.
-- Apply OCR fallback for scanned or poor-quality PDFs.
+- Extract text from PDF, DOCX, and TXT files.
 - Preserve page-level signals when available for later citation support.
 """
 
@@ -20,13 +19,10 @@ import fitz
 from docx import Document
 
 from core.logging import get_logger
-from services.ocr_service import OCRService
 
 logger = get_logger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp"}
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
-PDF_TEXT_MIN_CHARS = 120
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 
 @dataclass(frozen=True)
@@ -82,9 +78,6 @@ class TextExtractionService:
         if extension == ".txt" or (mime_type or "").lower().startswith("text/plain"):
             return TextExtractionService._extract_txt(file_bytes)
 
-        if extension in IMAGE_EXTENSIONS or (mime_type or "").lower().startswith("image/"):
-            return TextExtractionService._extract_image(file_bytes)
-
         raise RuntimeError("Unsupported file type")
 
     @staticmethod
@@ -106,27 +99,6 @@ class TextExtractionService:
 
                 extracted_text = "\n\n".join(page.text for page in pages if page.text)
 
-                if cls._should_use_pdf_ocr(extracted_text):
-                    logger.info(
-                        "DOCUMENTS: extraction path chosen",
-                        extra={"extraction_path": "pdf-ocr"},
-                    )
-                    ocr_pages: List[ExtractedPage] = []
-                    for index, page in enumerate(document, start=1):
-                        pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-                        ocr_text = cls._normalize_text(
-                            OCRService.extract_text_from_image_bytes(
-                                pixmap.tobytes("png")
-                            )
-                        )
-                        ocr_pages.append(ExtractedPage(page_number=index, text=ocr_text))
-
-                    return ExtractionResult(
-                        full_text="\n\n".join(page.text for page in ocr_pages if page.text),
-                        extraction_path="pdf-ocr",
-                        pages=ocr_pages,
-                    )
-
                 logger.info(
                     "DOCUMENTS: extraction path chosen",
                     extra={"extraction_path": "pdf-text"},
@@ -144,11 +116,6 @@ class TextExtractionService:
                 extra={"error": str(exc)},
             )
             raise RuntimeError("Indexing failure: text extraction failed") from exc
-
-    @staticmethod
-    def _should_use_pdf_ocr(extracted_text: str) -> bool:
-        dense_text = re.sub(r"\s+", "", extracted_text or "")
-        return len(dense_text) < PDF_TEXT_MIN_CHARS
 
     @classmethod
     def _extract_docx(cls, file_bytes: bytes) -> ExtractionResult:
@@ -195,16 +162,3 @@ class TextExtractionService:
                 continue
 
         raise RuntimeError("Indexing failure: text extraction failed")
-
-    @classmethod
-    def _extract_image(cls, file_bytes: bytes) -> ExtractionResult:
-        text = cls._normalize_text(OCRService.extract_text_from_image_bytes(file_bytes))
-        logger.info(
-            "DOCUMENTS: extraction path chosen",
-            extra={"extraction_path": "image-ocr"},
-        )
-        return ExtractionResult(
-            full_text=text,
-            extraction_path="image-ocr",
-            pages=[ExtractedPage(page_number=1, text=text)],
-        )

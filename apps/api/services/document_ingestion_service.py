@@ -4,7 +4,6 @@ Document ingestion orchestration service for the
 UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
-- Download uploaded files from private storage.
 - Extract and normalize document text.
 - Chunk content deterministically with citation-ready metadata.
 - Generate embeddings through the Bytez client.
@@ -22,7 +21,6 @@ import asyncpg
 from core.config import settings
 from core.logging import get_logger
 from services.embedding_service import EmbeddingService
-from services.storage_service import StorageService
 from services.text_extraction_service import (
     ExtractedPage,
     ExtractionResult,
@@ -66,19 +64,16 @@ class DocumentIngestionService:
     async def finalize_document(
         connection: asyncpg.Connection,
         document_row: Dict[str, Any],
+        file_bytes: bytes,
     ) -> Dict[str, Any]:
         """
         Finalize and index one uploaded document.
         """
 
         document_id = str(document_row["id"])
-        bucket_name = document_row["bucket_name"]
-        object_path = document_row["storage_object_path"]
-
         await DocumentIngestionService._mark_processing(connection, document_id)
 
         try:
-            file_bytes = await StorageService.download_object(bucket_name, object_path)
             extraction = await asyncio.to_thread(
                 TextExtractionService.extract_document,
                 document_row["original_filename"],

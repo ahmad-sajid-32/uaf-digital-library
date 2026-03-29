@@ -11,15 +11,17 @@ Responsibilities:
 
 Architectural Constraints:
 - No HTTP route logic.
-- No OCR or embedding logic.
+- No text-extraction or embedding logic.
 - No storage SDK calls from routes.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
+from zipfile import BadZipFile, ZipFile
 
 import asyncpg
 
@@ -33,10 +35,18 @@ from services.storage_service import StorageService
 
 logger = get_logger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg", ".webp"}
-SUPPORTED_MIME_PREFIXES = ("application/pdf", "text/plain", "image/")
-SUPPORTED_MIME_TYPES = {
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+ALLOWED_MIME_TYPES_BY_EXTENSION = {
+    ".pdf": {"application/pdf"},
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    ".txt": {"text/plain"},
+}
+EXPECTED_FILE_SIGNATURE_BY_EXTENSION = {
+    ".pdf": "pdf",
+    ".docx": "docx",
+    ".txt": "txt",
 }
 
 
@@ -160,6 +170,23 @@ class DocumentsService:
                 await DocumentsService._set_request_identity(connection, user_id)
                 await DocumentsService._require_documents_manager(connection, user_id)
                 document_row = await DocumentsService._get_document_row(connection, document_id)
+                lifecycle_state = DocumentsService._build_document_lifecycle_state(
+                    document_row
+                )
+
+                if document_row["processing_status"] == "processing":
+                    raise RuntimeError("Document is already processing")
+
+                if document_row["processing_status"] == "indexed":
+                    return {
+                        "document_id": document_id,
+                        "processing_status": "indexed",
+                        "message": "Document already indexed",
+                        **lifecycle_state,
+                    }
+
+                if lifecycle_state["requires_reupload"]:
+                    raise RuntimeError("Upload expired; re-upload required")
 
                 object_info = await StorageService.get_object_info(
                     document_row["bucket_name"],
@@ -169,9 +196,14 @@ class DocumentsService:
                 if object_info is None:
                     raise RuntimeError("Storage object missing")
 
+                file_bytes = await StorageService.download_object(
+                    document_row["bucket_name"],
+                    document_row["storage_object_path"],
+                )
                 validated_object = DocumentsService._validate_uploaded_object(
                     document_row=document_row,
                     object_info=object_info,
+                    file_bytes=file_bytes,
                 )
                 document_row["mime_type"] = validated_object["mime_type"]
                 document_row["file_size_bytes"] = validated_object["file_size_bytes"]
@@ -182,10 +214,22 @@ class DocumentsService:
                     file_size_bytes=validated_object["file_size_bytes"],
                 )
 
-                return await DocumentIngestionService.finalize_document(
+                ingestion_result = await DocumentIngestionService.finalize_document(
                     connection,
                     document_row,
+                    file_bytes,
                 )
+                return {
+                    **ingestion_result,
+                    "message": "Document indexed successfully",
+                    **DocumentsService._build_document_lifecycle_state(
+                        {
+                            **document_row,
+                            "processing_status": ingestion_result["processing_status"],
+                            "created_at": document_row.get("created_at"),
+                        }
+                    ),
+                }
         except asyncpg.PostgresError as exc:
             logger.error(
                 "DOCUMENTS: finalize document failed",
@@ -209,20 +253,23 @@ class DocumentsService:
                 rows = await connection.fetch(
                     """
                     select
-                        id,
-                        title,
-                        original_filename,
-                        bucket_name,
-                        storage_object_path,
-                        mime_type,
-                        file_size_bytes,
-                        processing_status,
-                        indexing_error,
-                        is_active,
-                        uploaded_by,
-                        created_at,
-                        updated_at
-                    from library.university_documents
+                        d.id,
+                        d.title,
+                        d.original_filename,
+                        d.bucket_name,
+                        d.storage_object_path,
+                        d.mime_type,
+                        d.file_size_bytes,
+                        d.processing_status,
+                        d.indexing_error,
+                        d.is_active,
+                        d.uploaded_by,
+                        p.full_name as uploaded_by_name,
+                        d.created_at,
+                        d.updated_at
+                    from library.university_documents d
+                    left join library.profiles p
+                        on p.id = d.uploaded_by
                     order by created_at desc, id desc
                     """
                 )
@@ -237,7 +284,64 @@ class DocumentsService:
             )
             raise RuntimeError(str(exc)) from exc
 
-        return [dict(row) for row in rows]
+        return [DocumentsService._enrich_document_row(dict(row)) for row in rows]
+
+    @staticmethod
+    async def create_signed_read_url(
+        user_id: str,
+        document_id: UUID,
+        *,
+        disposition: str,
+    ) -> Dict[str, Any]:
+        pool = Database.get_pool()
+
+        try:
+            async with pool.acquire() as connection:
+                await DocumentsService._set_request_identity(connection, user_id)
+                await DocumentsService._require_documents_manager(connection, user_id)
+                document_row = await DocumentsService._get_document_row(
+                    connection,
+                    document_id,
+                )
+
+                signed_read_url = await StorageService.create_signed_read_url(
+                    document_row["bucket_name"],
+                    document_row["storage_object_path"],
+                    expires_in_seconds=settings.document_signed_read_url_ttl_seconds,
+                    download_filename=(
+                        str(document_row["original_filename"])
+                        if disposition == "attachment"
+                        else None
+                    ),
+                )
+        except asyncpg.PostgresError as exc:
+            logger.error(
+                "DOCUMENTS: create signed read url failed",
+                extra={
+                    "user_id": user_id,
+                    "document_id": str(document_id),
+                    "sqlstate": exc.sqlstate,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError(str(exc)) from exc
+
+        logger.info(
+            "DOCUMENTS: signed read url created",
+            extra={
+                "user_id": user_id,
+                "document_id": str(document_id),
+                "disposition": disposition,
+                "expires_in_seconds": settings.document_signed_read_url_ttl_seconds,
+            },
+        )
+
+        return {
+            "document_id": document_id,
+            "signed_read_url": signed_read_url,
+            "expires_in_seconds": settings.document_signed_read_url_ttl_seconds,
+            "disposition": disposition,
+        }
 
     @staticmethod
     async def get_document(user_id: str, document_id: UUID) -> Dict[str, Any]:
@@ -250,26 +354,29 @@ class DocumentsService:
                 row = await connection.fetchrow(
                     """
                     select
-                        id,
-                        title,
-                        original_filename,
-                        bucket_name,
-                        storage_object_path,
-                        mime_type,
-                        file_size_bytes,
-                        processing_status,
-                        indexing_error,
-                        is_active,
-                        uploaded_by,
-                        created_at,
-                        updated_at,
-                        checksum_sha256,
-                        document_type,
-                        audience_scope,
-                        department,
-                        file_path
-                    from library.university_documents
-                    where id = $1::uuid
+                        d.id,
+                        d.title,
+                        d.original_filename,
+                        d.bucket_name,
+                        d.storage_object_path,
+                        d.mime_type,
+                        d.file_size_bytes,
+                        d.processing_status,
+                        d.indexing_error,
+                        d.is_active,
+                        d.uploaded_by,
+                        p.full_name as uploaded_by_name,
+                        d.created_at,
+                        d.updated_at,
+                        d.checksum_sha256,
+                        d.document_type,
+                        d.audience_scope,
+                        d.department,
+                        d.file_path
+                    from library.university_documents d
+                    left join library.profiles p
+                        on p.id = d.uploaded_by
+                    where d.id = $1::uuid
                     """,
                     document_id,
                 )
@@ -288,7 +395,7 @@ class DocumentsService:
         if row is None:
             raise RuntimeError("Document not found")
 
-        return dict(row)
+        return DocumentsService._enrich_document_row(dict(row))
 
     @staticmethod
     async def delete_document(user_id: str, document_id: UUID) -> None:
@@ -389,10 +496,7 @@ class DocumentsService:
         if extension not in SUPPORTED_EXTENSIONS:
             raise RuntimeError("Unsupported file type")
 
-        if not (
-            mime_type in SUPPORTED_MIME_TYPES
-            or mime_type.startswith(SUPPORTED_MIME_PREFIXES)
-        ):
+        if not DocumentsService._is_allowed_mime_for_extension(extension, mime_type):
             raise RuntimeError("Unsupported file type")
 
     @staticmethod
@@ -484,6 +588,7 @@ class DocumentsService:
         *,
         document_row: Dict[str, Any],
         object_info: Dict[str, Any],
+        file_bytes: bytes,
     ) -> Dict[str, Any]:
         """
         Enforce storage-level upload policy during finalize/index.
@@ -496,6 +601,9 @@ class DocumentsService:
         expected_file_size = int(document_row["file_size_bytes"] or 0)
         stored_file_size = DocumentsService._extract_storage_size_bytes(object_info)
         stored_mime_type = DocumentsService._extract_storage_mime_type(object_info)
+        detected_signature = DocumentsService._detect_file_signature(file_bytes)
+        expected_signature = EXPECTED_FILE_SIGNATURE_BY_EXTENSION.get(expected_extension)
+        resolved_mime_type = stored_mime_type
 
         if expected_extension not in SUPPORTED_EXTENSIONS:
             raise RuntimeError("Unsupported file type")
@@ -509,22 +617,98 @@ class DocumentsService:
         if expected_file_size > 0 and stored_file_size != expected_file_size:
             raise RuntimeError("Stored object violates upload policy")
 
-        if not stored_mime_type:
+        if (
+            resolved_mime_type in {None, "application/octet-stream"}
+            and expected_mime_type
+            and DocumentsService._is_allowed_mime_for_extension(
+                expected_extension,
+                expected_mime_type,
+            )
+            and (expected_signature is None or detected_signature == expected_signature)
+        ):
+            resolved_mime_type = expected_mime_type
+
+        if not resolved_mime_type:
             raise RuntimeError("Stored object violates upload policy")
 
-        if not (
-            stored_mime_type in SUPPORTED_MIME_TYPES
-            or stored_mime_type.startswith(SUPPORTED_MIME_PREFIXES)
+        if expected_file_size > 0 and len(file_bytes) != expected_file_size:
+            raise RuntimeError("Stored object violates upload policy")
+
+        if not DocumentsService._is_allowed_mime_for_extension(
+            expected_extension,
+            resolved_mime_type,
         ):
             raise RuntimeError("Unsupported file type")
 
-        if expected_mime_type and stored_mime_type != expected_mime_type:
+        if expected_mime_type and not DocumentsService._is_allowed_mime_for_extension(
+            expected_extension,
+            expected_mime_type,
+        ):
+            raise RuntimeError("Unsupported file type")
+
+        if expected_mime_type and resolved_mime_type != expected_mime_type:
+            raise RuntimeError("Stored object violates upload policy")
+
+        if expected_signature and detected_signature != expected_signature:
             raise RuntimeError("Stored object violates upload policy")
 
         return {
             "file_size_bytes": stored_file_size,
-            "mime_type": stored_mime_type,
+            "mime_type": resolved_mime_type,
         }
+
+    @staticmethod
+    def _is_allowed_mime_for_extension(extension: str, mime_type: str) -> bool:
+        allowed_types = ALLOWED_MIME_TYPES_BY_EXTENSION.get(extension, set())
+        return mime_type in allowed_types
+
+    @staticmethod
+    def _detect_file_signature(file_bytes: bytes) -> Optional[str]:
+        if file_bytes.startswith(b"%PDF-"):
+            return "pdf"
+
+        if DocumentsService._looks_like_docx(file_bytes):
+            return "docx"
+
+        if DocumentsService._looks_like_text_file(file_bytes):
+            return "txt"
+
+        return None
+
+    @staticmethod
+    def _looks_like_docx(file_bytes: bytes) -> bool:
+        try:
+            with ZipFile(BytesIO(file_bytes)) as archive:
+                names = set(archive.namelist())
+        except BadZipFile:
+            return False
+
+        return "[Content_Types].xml" in names and any(
+            name.startswith("word/") for name in names
+        )
+
+    @staticmethod
+    def _looks_like_text_file(file_bytes: bytes) -> bool:
+        if not file_bytes or b"\x00" in file_bytes[:4096]:
+            return False
+
+        sample = file_bytes[:8192]
+
+        for encoding in ("utf-8", "utf-8-sig", "latin-1"):
+            try:
+                decoded = sample.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
+            if not decoded.strip():
+                continue
+
+            readable_chars = sum(
+                1 for char in decoded if char.isprintable() or char in "\n\r\t"
+            )
+            return (readable_chars / len(decoded)) >= 0.95
+
+        return False
 
     @staticmethod
     async def _apply_validated_storage_metadata(
@@ -551,3 +735,76 @@ class DocumentsService:
             mime_type,
             file_size_bytes,
         )
+
+    @staticmethod
+    def _enrich_document_row(row: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Attach lifecycle and action metadata used by staff-facing UI.
+        """
+
+        return {
+            **row,
+            **DocumentsService._build_document_lifecycle_state(row),
+        }
+
+    @staticmethod
+    def _build_document_lifecycle_state(row: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Derive frontend-safe lifecycle flags from the persisted document row.
+        """
+
+        processing_status = str(row.get("processing_status") or "")
+        created_at = row.get("created_at")
+        is_upload_stale = DocumentsService._is_upload_stale(
+            processing_status=processing_status,
+            created_at=created_at,
+        )
+        can_finalize = processing_status == "uploaded" and not is_upload_stale
+        can_retry_finalize = processing_status == "failed"
+        requires_reupload = processing_status == "uploaded" and is_upload_stale
+
+        if processing_status == "uploaded" and is_upload_stale:
+            lifecycle_note = (
+                "Upload intent expired before the file arrived. Delete and re-upload the document."
+            )
+        elif processing_status == "uploaded":
+            lifecycle_note = "Waiting for file upload and finalize."
+        elif processing_status == "processing":
+            lifecycle_note = "Indexing is in progress."
+        elif processing_status == "failed":
+            lifecycle_note = (
+                "Indexing failed. Finalize can retry after the underlying issue is fixed."
+            )
+        else:
+            lifecycle_note = "Indexed and available for retrieval."
+
+        return {
+            "is_upload_stale": is_upload_stale,
+            "can_finalize": can_finalize,
+            "can_retry_finalize": can_retry_finalize,
+            "requires_reupload": requires_reupload,
+            "lifecycle_note": lifecycle_note,
+        }
+
+    @staticmethod
+    def _is_upload_stale(
+        *,
+        processing_status: str,
+        created_at: Any,
+    ) -> bool:
+        """
+        Determine whether an uploaded-but-unfinalized document has exceeded the grace window.
+        """
+
+        if processing_status != "uploaded" or not isinstance(created_at, datetime):
+            return False
+
+        created_at_utc = created_at
+        if created_at_utc.tzinfo is None:
+            created_at_utc = created_at_utc.replace(tzinfo=timezone.utc)
+        else:
+            created_at_utc = created_at_utc.astimezone(timezone.utc)
+
+        stale_after = timedelta(seconds=settings.document_upload_stale_after_seconds)
+        now_utc = datetime.now(timezone.utc)
+        return created_at_utc <= (now_utc - stale_after)

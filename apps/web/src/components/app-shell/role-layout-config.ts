@@ -55,6 +55,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
+      id: "fines",
+      label: "Fines",
+      href: "/admin/fines",
+      icon: "credit-card",
+      match: "startsWith",
+    },
+    {
       id: "analytics",
       label: "Analytics",
       href: "/admin/analytics",
@@ -68,7 +75,6 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       href: "/admin/documents",
       icon: "scroll-text",
       match: "startsWith",
-      disabled: true,
     },
   ],
   librarian: [
@@ -94,6 +100,20 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       icon: "library-big",
       match: "startsWith",
       disabled: true,
+    },
+    {
+      id: "fines",
+      label: "Fines",
+      href: "/librarian/fines",
+      icon: "credit-card",
+      match: "startsWith",
+    },
+    {
+      id: "documents",
+      label: "Documents",
+      href: "/librarian/documents",
+      icon: "scroll-text",
+      match: "startsWith",
     },
   ],
   student: [
@@ -123,7 +143,7 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
   ],
 };
 
-function getRoleMenuItems(role: AppRole): UserAvatarMenuItem[] {
+function getRoleMenuItems(): UserAvatarMenuItem[] {
   return [...COMMON_MENU_ITEMS];
 }
 
@@ -137,7 +157,7 @@ export function getRoleShellLayoutConfig(
     roleLabel,
     dashboardHref: getRoleDashboardPath(role),
     navItems: ROLE_NAV_ITEMS[role],
-    menuItems: getRoleMenuItems(role),
+    menuItems: getRoleMenuItems(),
   };
 }
 

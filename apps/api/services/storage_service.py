@@ -46,6 +46,30 @@ class StorageService:
         return "/".join(quote(segment, safe="") for segment in object_path.split("/"))
 
     @classmethod
+    def _resolve_signed_storage_url(cls, value: str) -> str:
+        """
+        Normalize Supabase signed storage URLs into absolute URLs.
+
+        Supabase may return:
+        - a fully qualified URL
+        - a path starting with `/storage/v1/...`
+        - a path starting with `/object/...`
+        """
+
+        normalized = value.strip()
+
+        if normalized.startswith("http"):
+            return normalized
+
+        if normalized.startswith("/storage/v1/"):
+            return f"{settings.supabase_project_url.rstrip('/')}{normalized}"
+
+        if normalized.startswith("/object/"):
+            return f"{cls._base_url()}{normalized}"
+
+        return f"{cls._base_url()}/{normalized.lstrip('/')}"
+
+    @classmethod
     async def create_signed_upload_url(
         cls,
         bucket_name: str,
@@ -88,8 +112,8 @@ class StorageService:
             or payload.get("url")
         )
 
-        if signed_upload_url and not signed_upload_url.startswith("http"):
-            signed_upload_url = f"{settings.supabase_project_url.rstrip('/')}{signed_upload_url}"
+        if signed_upload_url:
+            signed_upload_url = cls._resolve_signed_storage_url(signed_upload_url)
 
         if not signed_upload_url and token:
             signed_upload_url = (
@@ -104,6 +128,64 @@ class StorageService:
             "signed_upload_url": signed_upload_url,
             "token": token,
         }
+
+    @classmethod
+    async def create_signed_read_url(
+        cls,
+        bucket_name: str,
+        object_path: str,
+        *,
+        expires_in_seconds: int,
+        download_filename: str | None = None,
+    ) -> str:
+        """
+        Create a short-lived signed read URL for a private bucket object path.
+        """
+
+        encoded_path = cls._encode_object_path(object_path)
+        endpoint = (
+            f"{cls._base_url()}/object/sign/"
+            f"{quote(bucket_name, safe='')}/{encoded_path}"
+        )
+
+        payload: Dict[str, Any] = {"expiresIn": expires_in_seconds}
+
+        if download_filename:
+            payload["download"] = download_filename
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                endpoint,
+                headers=cls._headers(),
+                json=payload,
+            )
+
+        if response.is_error:
+            logger.error(
+                "DOCUMENTS: signed read url request failed",
+                extra={
+                    "bucket_name": bucket_name,
+                    "storage_object_path": object_path,
+                    "status_code": response.status_code,
+                    "error": response.text,
+                },
+            )
+            raise RuntimeError("Storage request failed")
+
+        body = response.json()
+        signed_read_url = (
+            body.get("signedURL")
+            or body.get("signedUrl")
+            or body.get("url")
+        )
+
+        if signed_read_url:
+            signed_read_url = cls._resolve_signed_storage_url(signed_read_url)
+
+        if not signed_read_url:
+            raise RuntimeError("Storage request failed")
+
+        return signed_read_url
 
     @classmethod
     async def download_object(cls, bucket_name: str, object_path: str) -> bytes:

@@ -109,11 +109,12 @@ class MeService:
 
         try:
             async with pool.acquire() as connection:
-                await connection.execute(
-                    "select set_config('request.jwt.claim.sub', $1, true)",
-                    user_id,
-                )
-                rows = await connection.fetch(query, *parameters)
+                async with connection.transaction():
+                    await connection.execute(
+                        "select set_config('request.jwt.claim.sub', $1, true)",
+                        user_id,
+                    )
+                    rows = await connection.fetch(query, *parameters)
         except asyncpg.PostgresError as exc:
             logger.error(
                 f"ME: {action} RPC failed",

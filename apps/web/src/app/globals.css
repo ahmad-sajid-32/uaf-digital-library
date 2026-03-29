@@ -1,5 +1,6 @@
 @config "../../tailwind.config.js";
 @import "tailwindcss";
+@import "flatpickr/dist/flatpickr.min.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -112,6 +113,26 @@ html.dark {
   background: hsl(var(--background));
 }
 
+.scrollbar-hidden {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar-thumb,
+.scrollbar-hidden::-webkit-scrollbar-track,
+.scrollbar-hidden::-webkit-scrollbar-corner,
+.scrollbar-hidden::-webkit-scrollbar-button {
+  display: none !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -180,4 +201,40 @@ body {
 [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
   box-shadow: none !important;
   outline: none !important;
+}
+
+.flatpickr-day.today {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.flatpickr-day.today:hover,
+.flatpickr-day.today:focus {
+  background: hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange:hover,
+.flatpickr-day.flatpickr-disabled {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.flatpickr-day.inRange,
+.flatpickr-day.nextMonthDay.inRange,
+.flatpickr-day.prevMonthDay.inRange,
+.flatpickr-day.today.inRange {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--accent));
+  box-shadow:
+    -5px 0 0 hsl(var(--accent)),
+    5px 0 0 hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }

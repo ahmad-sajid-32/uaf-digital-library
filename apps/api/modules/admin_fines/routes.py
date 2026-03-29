@@ -11,19 +11,20 @@ Purpose:
 
 import time
 
-from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
+from core.rate_limit import enforce_rate_limit
 from modules.admin_fines.schemas import (
     ADMIN_FINE_DETAIL_SUCCESS_EXAMPLE,
     ADMIN_FINES_SUCCESS_EXAMPLE,
     AdminFineDetailData,
     AdminFineDetailResponse,
     AdminFinesData,
+    AdminFinesListQueryParams,
     AdminFinesResponse,
 )
 from modules.admin_fines.service import AdminFinesService
@@ -59,6 +60,24 @@ def _resolve_runtime_error_status(message: str) -> int:
     return status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
+async def _enforce_staff_fine_read_rate_limit(
+    request: Request,
+    *,
+    user_id: str,
+    subject_hint: str,
+) -> None:
+    """
+    Apply staff fine-read throttling for list/detail requests.
+    """
+
+    await enforce_rate_limit(
+        request=request,
+        tier="fine_read",
+        user_id=user_id,
+        subject_hint=subject_hint,
+    )
+
+
 @router.get(
     "",
     response_model=AdminFinesResponse,
@@ -66,20 +85,40 @@ def _resolve_runtime_error_status(message: str) -> int:
         200: {
             "description": "Fine history retrieved successfully",
             "content": {"application/json": {"example": ADMIN_FINES_SUCCESS_EXAMPLE}},
-        }
+        },
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        422: {"description": "Validation Error"},
+        429: {"description": "Too Many Requests"},
+        500: {"description": "Internal Server Error"},
     },
 )
 async def get_fines(
     request: Request,
-    status_filter: Optional[Literal["pending", "paid", "waived", "cancelled"]] = Query(
-        default=None,
-        alias="status",
-    ),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    query: AdminFinesListQueryParams = Depends(),
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AdminFinesResponse:
     user_id = _require_user_id(request)
+    subject_hint = "|".join(
+        [
+            query.status or "all-statuses",
+            query.search or "no-search",
+            query.created_from.isoformat() if query.created_from else "no-created-from",
+            query.created_to.isoformat() if query.created_to else "no-created-to",
+            query.resolved_from.isoformat()
+            if query.resolved_from
+            else "no-resolved-from",
+            query.resolved_to.isoformat() if query.resolved_to else "no-resolved-to",
+            str(query.limit),
+            str(query.offset),
+        ]
+    )
+
+    await _enforce_staff_fine_read_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=subject_hint,
+    )
 
     logger.info(
         "ADMIN_FINES: list request",
@@ -87,14 +126,37 @@ async def get_fines(
             "request_id": getattr(request.state, "request_id", None),
             "route": request.url.path,
             "user_id": user_id,
-            "status_filter": status_filter,
-            "limit": limit,
-            "offset": offset,
+            "status_filter": query.status,
+            "search": query.search,
+            "created_from": (
+                query.created_from.isoformat() if query.created_from else None
+            ),
+            "created_to": query.created_to.isoformat() if query.created_to else None,
+            "resolved_from": (
+                query.resolved_from.isoformat() if query.resolved_from else None
+            ),
+            "resolved_to": (
+                query.resolved_to.isoformat() if query.resolved_to else None
+            ),
+            "limit": query.limit,
+            "offset": query.offset,
+            "rate_limit_tier": "fine_read",
+            "outcome": "request",
         },
     )
 
     try:
-        items = await AdminFinesService.get_fines(user_id, status_filter, limit, offset)
+        result = await AdminFinesService.get_fines(
+            user_id=user_id,
+            status=query.status,
+            search=query.search,
+            created_from=query.created_from,
+            created_to=query.created_to,
+            resolved_from=query.resolved_from,
+            resolved_to=query.resolved_to,
+            limit=query.limit,
+            offset=query.offset,
+        )
     except RuntimeError as exc:
         http_status = _resolve_runtime_error_status(str(exc))
         logger.error(
@@ -103,11 +165,26 @@ async def get_fines(
                 "request_id": getattr(request.state, "request_id", None),
                 "route": request.url.path,
                 "user_id": user_id,
-                "status_filter": status_filter,
-                "limit": limit,
-                "offset": offset,
+                "status_filter": query.status,
+                "search": query.search,
+                "created_from": (
+                    query.created_from.isoformat() if query.created_from else None
+                ),
+                "created_to": (
+                    query.created_to.isoformat() if query.created_to else None
+                ),
+                "resolved_from": (
+                    query.resolved_from.isoformat() if query.resolved_from else None
+                ),
+                "resolved_to": (
+                    query.resolved_to.isoformat() if query.resolved_to else None
+                ),
+                "limit": query.limit,
+                "offset": query.offset,
                 "error": str(exc),
                 "status_code": http_status,
+                "rate_limit_tier": "fine_read",
+                "outcome": "failed",
             },
         )
         raise HTTPException(
@@ -115,10 +192,30 @@ async def get_fines(
             detail=str(exc) if http_status != 500 else "Internal Server Error",
         ) from exc
 
+    logger.info(
+        "ADMIN_FINES: list success",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "returned_items": len(result["items"]),
+            "total": result["total"],
+            "limit": query.limit,
+            "offset": query.offset,
+            "rate_limit_tier": "fine_read",
+            "outcome": "success",
+        },
+    )
+
     return AdminFinesResponse(
         status=200,
         message="Fine history retrieved successfully",
-        data=AdminFinesData(items=items),
+        data=AdminFinesData(
+            items=result["items"],
+            total=result["total"],
+            limit=query.limit,
+            offset=query.offset,
+        ),
         timestamp_ms=int(time.time() * 1000),
     )
 
@@ -130,15 +227,26 @@ async def get_fines(
         200: {
             "description": "Fine detail retrieved successfully",
             "content": {"application/json": {"example": ADMIN_FINE_DETAIL_SUCCESS_EXAMPLE}},
-        }
+        },
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Fine not found"},
+        422: {"description": "Validation Error"},
+        429: {"description": "Too Many Requests"},
+        500: {"description": "Internal Server Error"},
     },
 )
 async def get_fine_detail(
     request: Request,
     fine_id: UUID,
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AdminFineDetailResponse:
     user_id = _require_user_id(request)
+    await _enforce_staff_fine_read_rate_limit(
+        request,
+        user_id=user_id,
+        subject_hint=str(fine_id),
+    )
 
     logger.info(
         "ADMIN_FINES: detail request",
@@ -147,6 +255,8 @@ async def get_fine_detail(
             "route": request.url.path,
             "user_id": user_id,
             "fine_id": str(fine_id),
+            "rate_limit_tier": "fine_read",
+            "outcome": "request",
         },
     )
 
@@ -163,12 +273,26 @@ async def get_fine_detail(
                 "fine_id": str(fine_id),
                 "error": str(exc),
                 "status_code": http_status,
+                "rate_limit_tier": "fine_read",
+                "outcome": "failed",
             },
         )
         raise HTTPException(
             status_code=http_status,
             detail=str(exc) if http_status != 500 else "Internal Server Error",
         ) from exc
+
+    logger.info(
+        "ADMIN_FINES: detail success",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "fine_id": str(fine_id),
+            "rate_limit_tier": "fine_read",
+            "outcome": "success",
+        },
+    )
 
     return AdminFineDetailResponse(
         status=200,

@@ -19,6 +19,7 @@ from core.config import settings
 
 
 ProcessingStatus = Literal["uploaded", "processing", "indexed", "failed"]
+ReadUrlDisposition = Literal["inline", "attachment"]
 
 
 def _normalize_required_text(value: Any) -> Any:
@@ -127,6 +128,10 @@ class FinalizeDocumentData(BaseModel):
 
     document_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
     processing_status: ProcessingStatus = Field(..., example="indexed")
+    is_upload_stale: bool = Field(default=False, example=False)
+    can_finalize: bool = Field(default=False, example=False)
+    can_retry_finalize: bool = Field(default=False, example=False)
+    requires_reupload: bool = Field(default=False, example=False)
 
 
 class FinalizeDocumentResponse(BaseModel):
@@ -135,8 +140,33 @@ class FinalizeDocumentResponse(BaseModel):
     """
 
     status: int = Field(..., example=200)
-    message: str = Field(..., example="Document indexed successfully")
+    message: str = Field(..., example="Document finalized successfully")
     data: FinalizeDocumentData
+    timestamp_ms: int = Field(..., example=1741392000000)
+
+
+class SignedReadUrlData(BaseModel):
+    """
+    Signed read-url payload for private document access.
+    """
+
+    document_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    signed_read_url: str = Field(
+        ...,
+        example="https://project.supabase.co/storage/v1/object/sign/university-documents/official/2026/03/550e8400-e29b-41d4-a716-446655440000__semester-rules.pdf?token=example",
+    )
+    expires_in_seconds: int = Field(..., example=300)
+    disposition: ReadUrlDisposition = Field(..., example="inline")
+
+
+class SignedReadUrlResponse(BaseModel):
+    """
+    Normalized response for signed document read URL issuance.
+    """
+
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Signed read URL generated successfully")
+    data: SignedReadUrlData
     timestamp_ms: int = Field(..., example=1741392000000)
 
 
@@ -162,8 +192,17 @@ class DocumentListItem(BaseModel):
         default=None,
         example="11111111-1111-1111-1111-111111111111",
     )
+    uploaded_by_name: Optional[str] = Field(default=None, example="Ahmad Sajid")
     created_at: datetime = Field(..., example="2026-03-08T10:00:00Z")
     updated_at: datetime = Field(..., example="2026-03-08T10:05:00Z")
+    is_upload_stale: bool = Field(default=False, example=False)
+    can_finalize: bool = Field(default=False, example=False)
+    can_retry_finalize: bool = Field(default=False, example=False)
+    requires_reupload: bool = Field(default=False, example=False)
+    lifecycle_note: str = Field(
+        ...,
+        example="Indexed and available for retrieval.",
+    )
 
 
 class DocumentDetailItem(DocumentListItem):
@@ -269,6 +308,22 @@ FINALIZE_DOCUMENT_SUCCESS_EXAMPLE = {
     "data": {
         "document_id": "550e8400-e29b-41d4-a716-446655440000",
         "processing_status": "indexed",
+        "is_upload_stale": False,
+        "can_finalize": False,
+        "can_retry_finalize": False,
+        "requires_reupload": False,
+    },
+    "timestamp_ms": 1741392000000,
+}
+
+SIGNED_READ_URL_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Signed read URL generated successfully",
+    "data": {
+        "document_id": "550e8400-e29b-41d4-a716-446655440000",
+        "signed_read_url": "https://project.supabase.co/storage/v1/object/sign/university-documents/official/2026/03/550e8400-e29b-41d4-a716-446655440000__semester-rules.pdf?token=example",
+        "expires_in_seconds": 300,
+        "disposition": "inline",
     },
     "timestamp_ms": 1741392000000,
 }
@@ -290,8 +345,14 @@ DOCUMENTS_LIST_SUCCESS_EXAMPLE = {
                 "indexing_error": None,
                 "is_active": True,
                 "uploaded_by": "11111111-1111-1111-1111-111111111111",
+                "uploaded_by_name": "Ahmad Sajid",
                 "created_at": "2026-03-08T10:00:00Z",
                 "updated_at": "2026-03-08T10:05:00Z",
+                "is_upload_stale": False,
+                "can_finalize": False,
+                "can_retry_finalize": False,
+                "requires_reupload": False,
+                "lifecycle_note": "Indexed and available for retrieval.",
             }
         ]
     },
@@ -314,8 +375,14 @@ DOCUMENT_DETAIL_SUCCESS_EXAMPLE = {
             "indexing_error": None,
             "is_active": True,
             "uploaded_by": "11111111-1111-1111-1111-111111111111",
+            "uploaded_by_name": "Ahmad Sajid",
             "created_at": "2026-03-08T10:00:00Z",
             "updated_at": "2026-03-08T10:05:00Z",
+            "is_upload_stale": False,
+            "can_finalize": False,
+            "can_retry_finalize": False,
+            "requires_reupload": False,
+            "lifecycle_note": "Indexed and available for retrieval.",
             "checksum_sha256": "f3b0d2c5e5f6f9f7d32d8d5f9d5e8a1f9f4b8b9d4e2f7a1c3d4e5f6a7b8c9d0e",
             "document_type": "policy",
             "audience_scope": "all_students",
