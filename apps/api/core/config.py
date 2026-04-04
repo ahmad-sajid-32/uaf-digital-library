@@ -123,6 +123,10 @@ class Settings:
     fine_read_rate_limit_max_requests: int
     fine_settlement_rate_limit_window_seconds: int
     fine_settlement_rate_limit_max_requests: int
+    ai_conversation_read_rate_limit_window_seconds: int
+    ai_conversation_read_rate_limit_max_requests: int
+    ai_conversation_write_rate_limit_window_seconds: int
+    ai_conversation_write_rate_limit_max_requests: int
     ai_retrieval_rate_limit_window_seconds: int
     ai_retrieval_rate_limit_max_requests: int
     ai_generation_rate_limit_window_seconds: int
@@ -448,6 +452,18 @@ def load_settings() -> Settings:
         ),
         fine_settlement_rate_limit_max_requests=int(
             _get_env("FINE_SETTLEMENT_RATE_LIMIT_MAX_REQUESTS", "15")
+        ),
+        ai_conversation_read_rate_limit_window_seconds=int(
+            _get_env("AI_CONVERSATION_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        ai_conversation_read_rate_limit_max_requests=int(
+            _get_env("AI_CONVERSATION_READ_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        ai_conversation_write_rate_limit_window_seconds=int(
+            _get_env("AI_CONVERSATION_WRITE_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        ai_conversation_write_rate_limit_max_requests=int(
+            _get_env("AI_CONVERSATION_WRITE_RATE_LIMIT_MAX_REQUESTS", "20")
         ),
         ai_retrieval_rate_limit_window_seconds=int(
             _get_env("AI_RETRIEVAL_RATE_LIMIT_WINDOW_SECONDS", "60")

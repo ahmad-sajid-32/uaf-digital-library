@@ -83,6 +83,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       icon: "scroll-text",
       match: "startsWith",
     },
+    {
+      id: "assistant",
+      label: "Assistant",
+      href: "/admin/assistant",
+      icon: "bot-message-square",
+      match: "startsWith",
+    },
   ],
   librarian: [
     {

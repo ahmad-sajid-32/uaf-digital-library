@@ -38,7 +38,7 @@ export function AuthenticatedRoleShell({
   children,
 }: AuthenticatedRoleShellProps): React.JSX.Element {
   const pathname = usePathname();
-  const { auth, hydrated } = useAppAuth();
+  const { auth } = useAppAuth();
   const { logout } = useAuthSessionActions();
 
   const liveUserSummary = React.useMemo(() => toAppShellUserSummary(auth), [auth]);
@@ -68,7 +68,7 @@ export function AuthenticatedRoleShell({
       currentPathname={pathname ?? layout.dashboardHref}
       user={resolvedUser}
       onLogout={handleLogout}
-      defaultSidebarOpen={!hydrated || auth.rememberMe}
+      defaultSidebarOpen={false}
     >
       {children}
     </AppShell>

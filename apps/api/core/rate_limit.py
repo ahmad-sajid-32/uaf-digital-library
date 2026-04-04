@@ -35,6 +35,8 @@ RateLimitTier = Literal[
     "book_mutation",
     "fine_read",
     "fine_settlement",
+    "ai_conversation_read",
+    "ai_conversation_write",
     "ai_retrieval",
     "ai_generation",
     "document_upload",
@@ -132,6 +134,16 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="fine_settlement",
             max_requests=settings.fine_settlement_rate_limit_max_requests,
             window_seconds=settings.fine_settlement_rate_limit_window_seconds,
+        ),
+        "ai_conversation_read": RateLimitPolicy(
+            tier="ai_conversation_read",
+            max_requests=settings.ai_conversation_read_rate_limit_max_requests,
+            window_seconds=settings.ai_conversation_read_rate_limit_window_seconds,
+        ),
+        "ai_conversation_write": RateLimitPolicy(
+            tier="ai_conversation_write",
+            max_requests=settings.ai_conversation_write_rate_limit_max_requests,
+            window_seconds=settings.ai_conversation_write_rate_limit_window_seconds,
         ),
         "ai_retrieval": RateLimitPolicy(
             tier="ai_retrieval",

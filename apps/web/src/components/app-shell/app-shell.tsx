@@ -61,7 +61,7 @@ export function AppShell({
   currentPathname,
   user,
   onLogout,
-  defaultSidebarOpen = true,
+  defaultSidebarOpen = false,
   children,
 }: AppShellProps): React.JSX.Element {
   return (

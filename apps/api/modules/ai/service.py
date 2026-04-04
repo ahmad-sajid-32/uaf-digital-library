@@ -5,11 +5,13 @@ UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
 - Normalize route-facing retrieval and answer input.
-- Apply configured defaults and clamps.
-- Delegate embedding and pgvector lookup to the retrieval service.
+- Apply configured defaults and clamps for the legacy AI endpoints.
+- Resolve backend-owned assistant intent profiles for the admin assistant flow.
 - Build strict grounded-answer payloads with deterministic fallback handling.
+- Keep retrieval tuning and assistant context assembly out of route handlers.
 """
 
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from core.config import settings
@@ -21,11 +23,27 @@ from services.retrieval_service import RetrievalService
 logger = get_logger(__name__)
 FALLBACK_ANSWER = "Information not found in official documents."
 MAX_CONTEXT_CHARS_PER_CHUNK = 1800
+MAX_HISTORY_MESSAGES = 8
+MAX_HISTORY_CHARS_PER_MESSAGE = 500
+
+
+@dataclass(frozen=True)
+class AssistantIntentProfile:
+    """
+    Backend-owned retrieval profile for assistant turns.
+    """
+
+    name: str
+    top_k: int
+    similarity_threshold: float
+    document_type: Optional[str] = None
+    audience_scope: Optional[str] = None
+    department: Optional[str] = None
 
 
 class AIService:
     """
-    Thin route-facing orchestration for retrieval-only searches.
+    Route-facing orchestration for legacy AI routes and assistant turns.
     """
 
     @staticmethod
@@ -125,11 +143,13 @@ class AIService:
                 "retrieved_chunks_count": 0,
             }
 
-        context_block = AIService._build_context_block(items[:top_k])
-        answer = await ChatGenerationService.generate_answer(query, context_block)
+        answer = await ChatGenerationService.generate_answer(
+            query,
+            AIService._build_context_block(items[:top_k]),
+        )
 
         fallback_used = answer.strip() == FALLBACK_ANSWER
-        citations = AIService._build_citations(items[:top_k])
+        citations = [] if fallback_used else AIService._build_citations(items[:top_k])
 
         logger.info(
             "AI: generation completed",
@@ -156,6 +176,194 @@ class AIService:
             "citations": citations,
             "retrieved_chunks_count": len(items),
         }
+
+    @staticmethod
+    async def generate_assistant_turn(
+        *,
+        user_id: str,
+        request_id: Optional[str],
+        query: str,
+        conversation_messages: Optional[list[dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        normalized_query = RetrievalService.normalize_query(query)
+        profile = AIService.resolve_assistant_intent_profile(
+            normalized_query,
+            conversation_messages=conversation_messages or [],
+        )
+
+        items = await RetrievalService.search_university_document_chunks(
+            user_id=user_id,
+            request_id=request_id,
+            query=normalized_query,
+            top_k=profile.top_k,
+            similarity_threshold=profile.similarity_threshold,
+            document_type=profile.document_type,
+            audience_scope=profile.audience_scope,
+            department=profile.department,
+        )
+
+        logger.info(
+            "AI: assistant retrieval completed",
+            extra={
+                "request_id": request_id,
+                "user_id": user_id,
+                "query_length": len(normalized_query),
+                "intent_profile": profile.name,
+                "top_k": profile.top_k,
+                "similarity_threshold": profile.similarity_threshold,
+                "document_type": profile.document_type,
+                "audience_scope": profile.audience_scope,
+                "department": profile.department,
+                "retrieved_chunks_count": len(items),
+            },
+        )
+
+        if not items:
+            return {
+                "query": normalized_query,
+                "answer": FALLBACK_ANSWER,
+                "fallback_used": True,
+                "retrieved_chunks_count": 0,
+                "citations": [],
+                "intent_profile": profile.name,
+                "applied_top_k": profile.top_k,
+                "applied_similarity_threshold": profile.similarity_threshold,
+            }
+
+        history_block = AIService._build_conversation_history_block(
+            conversation_messages or []
+        )
+        answer = await ChatGenerationService.generate_answer(
+            normalized_query,
+            AIService._build_context_block(items[: profile.top_k]),
+            history_block,
+        )
+
+        fallback_used = answer.strip() == FALLBACK_ANSWER
+        citations = [] if fallback_used else AIService._build_citations(items[: profile.top_k])
+
+        logger.info(
+            "AI: assistant generation completed",
+            extra={
+                "request_id": request_id,
+                "user_id": user_id,
+                "query_length": len(normalized_query),
+                "intent_profile": profile.name,
+                "retrieved_chunks_count": len(items),
+                "fallback_used": fallback_used,
+            },
+        )
+
+        return {
+            "query": normalized_query,
+            "answer": answer.strip(),
+            "fallback_used": fallback_used,
+            "retrieved_chunks_count": len(items),
+            "citations": citations,
+            "intent_profile": profile.name,
+            "applied_top_k": profile.top_k,
+            "applied_similarity_threshold": profile.similarity_threshold,
+        }
+
+    @staticmethod
+    def resolve_assistant_intent_profile(
+        query: str,
+        *,
+        conversation_messages: list[dict[str, Any]],
+    ) -> AssistantIntentProfile:
+        """
+        Resolve one deterministic backend-owned retrieval profile.
+        """
+
+        combined_query = AIService._build_intent_resolution_text(
+            query,
+            conversation_messages,
+        )
+        lowered = combined_query.lower()
+        default_threshold = settings.document_retrieval_similarity_threshold
+
+        department_map = {
+            "registrar": "Registrar Office",
+            "registrar office": "Registrar Office",
+            "admission office": "Admission Office",
+            "admissions office": "Admission Office",
+            "controller of examinations": "Controller of Examinations",
+            "controller": "Controller of Examinations",
+            "financial aid": "Financial Aid Office",
+            "fee section": "Fee Section",
+        }
+
+        for needle, department in department_map.items():
+            if needle in lowered:
+                return AssistantIntentProfile(
+                    name="department_specific_notice",
+                    top_k=min(settings.document_retrieval_default_top_k + 1, 8),
+                    similarity_threshold=default_threshold,
+                    department=department,
+                )
+
+        if any(
+            keyword in lowered
+            for keyword in (
+                "policy",
+                "freeze",
+                "semester freeze",
+                "rule",
+                "regulation",
+                "attendance",
+                "semester",
+                "withdrawal",
+                "discipline",
+            )
+        ):
+            return AssistantIntentProfile(
+                name="policy_lookup",
+                top_k=min(settings.document_retrieval_default_top_k + 1, 8),
+                similarity_threshold=default_threshold,
+            )
+
+        if any(
+            keyword in lowered
+            for keyword in (
+                "fee",
+                "tuition",
+                "dues",
+                "charges",
+                "payment",
+                "refund",
+                "scholarship",
+                "hostel fee",
+            )
+        ):
+            return AssistantIntentProfile(
+                name="fee_lookup",
+                top_k=min(settings.document_retrieval_default_top_k + 1, 8),
+                similarity_threshold=max(0.60, default_threshold - 0.05),
+            )
+
+        if any(
+            keyword in lowered
+            for keyword in (
+                "admission",
+                "apply",
+                "application",
+                "merit",
+                "eligibility",
+                "entry test",
+                "admitted",
+            )
+        ):
+            return AssistantIntentProfile(
+                name="admission_lookup",
+                top_k=min(settings.document_retrieval_default_top_k + 1, 8),
+                similarity_threshold=max(0.60, default_threshold - 0.05),
+            )
+
+        return AssistantIntentProfile(
+            name="general_university_info",
+            top_k=settings.document_retrieval_default_top_k,
+            similarity_threshold=default_threshold,
+        )
 
     @staticmethod
     def _resolve_top_k(top_k: Optional[int]) -> int:
@@ -219,7 +427,7 @@ class AIService:
         citations: list[dict[str, Any]] = []
         seen_chunk_ids: set[str] = set()
 
-        for item in items:
+        for rank, item in enumerate(items, start=1):
             chunk_id = str(item["chunk_id"])
             if chunk_id in seen_chunk_ids:
                 continue
@@ -234,7 +442,77 @@ class AIService:
                     "section_label": item.get("section_label"),
                     "page_number": item.get("page_number"),
                     "similarity_score": item["similarity_score"],
+                    "rank": rank,
+                    "content_hash": item.get("content_hash"),
                 }
             )
 
         return citations
+
+    @staticmethod
+    def _build_conversation_history_block(
+        conversation_messages: list[dict[str, Any]],
+    ) -> Optional[str]:
+        if not conversation_messages:
+            return None
+
+        blocks: list[str] = []
+
+        for item in conversation_messages[-MAX_HISTORY_MESSAGES:]:
+            role = "User" if item.get("role") == "user" else "Assistant"
+            content = str(item.get("content") or "").strip()
+
+            if not content:
+                continue
+
+            if len(content) > MAX_HISTORY_CHARS_PER_MESSAGE:
+                content = content[:MAX_HISTORY_CHARS_PER_MESSAGE].rstrip() + "..."
+
+            blocks.append(f"{role}: {content}")
+
+        if not blocks:
+            return None
+
+        return "\n".join(blocks)
+
+    @staticmethod
+    def _build_intent_resolution_text(
+        query: str,
+        conversation_messages: list[dict[str, Any]],
+    ) -> str:
+        trimmed_query = query.strip()
+
+        if not conversation_messages:
+            return trimmed_query
+
+        lowered = trimmed_query.lower()
+        looks_like_follow_up = any(
+            token in lowered
+            for token in (
+                "what about",
+                "what if",
+                "and ",
+                "that ",
+                "those ",
+                "them",
+                "it ",
+                "they ",
+                "eligibility",
+                "deadline",
+                "fees",
+            )
+        ) or len(trimmed_query.split()) <= 5
+
+        if not looks_like_follow_up:
+            return trimmed_query
+
+        previous_context = [
+            str(item.get("content") or "").strip()
+            for item in conversation_messages[-2:]
+            if str(item.get("content") or "").strip()
+        ]
+
+        if not previous_context:
+            return trimmed_query
+
+        return " ".join([*previous_context, trimmed_query])

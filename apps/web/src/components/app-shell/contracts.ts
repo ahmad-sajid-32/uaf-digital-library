@@ -38,6 +38,7 @@ export type AppShellIconName =
   | "layout-dashboard"
   | "users"
   | "bar-chart-3"
+  | "bot-message-square"
   | "scroll-text"
   | "book-copy"
   | "library-big"

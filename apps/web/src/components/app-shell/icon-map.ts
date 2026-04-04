@@ -11,6 +11,7 @@
 
 import {
   BarChart3,
+  BotMessageSquare,
   BookCopy,
   CreditCard,
   LayoutDashboard,
@@ -25,6 +26,7 @@ import type { AppShellIconName } from "@/components/app-shell/contracts";
 
 const APP_SHELL_ICON_MAP = {
   "bar-chart-3": BarChart3,
+  "bot-message-square": BotMessageSquare,
   "book-copy": BookCopy,
   "credit-card": CreditCard,
   "layout-dashboard": LayoutDashboard,

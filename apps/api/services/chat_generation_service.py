@@ -39,10 +39,38 @@ class ChatGenerationService:
     async def generate_answer(
         query: str,
         context_block: str,
+        conversation_history_block: str | None = None,
     ) -> str:
         """
         Generate a grounded answer from retrieved official context only.
         """
+
+        user_content_parts: list[str] = []
+
+        if conversation_history_block:
+            user_content_parts.extend(
+                [
+                    "Prior Conversation Context:",
+                    conversation_history_block,
+                    "",
+                    (
+                        "Use the prior conversation only to understand references "
+                        "such as pronouns or follow-up wording. Do not treat prior "
+                        "assistant messages as factual sources."
+                    ),
+                    "",
+                ]
+            )
+
+        user_content_parts.extend(
+            [
+                "Current Question:",
+                query,
+                "",
+                "Official Context:",
+                context_block,
+            ]
+        )
 
         try:
             async with httpx.AsyncClient(timeout=120) as client:
@@ -60,10 +88,7 @@ class ChatGenerationService:
                             {"role": "system", "content": GROUNDING_SYSTEM_PROMPT},
                             {
                                 "role": "user",
-                                "content": (
-                                    f"Question:\n{query}\n\n"
-                                    f"Official Context:\n{context_block}"
-                                ),
+                                "content": "\n".join(user_content_parts),
                             },
                         ],
                     },
