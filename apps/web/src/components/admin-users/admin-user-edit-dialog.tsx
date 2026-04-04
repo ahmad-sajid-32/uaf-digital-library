@@ -199,6 +199,7 @@ function RoleAwareFields(props: {
         <Input
           id="edit-email"
           value={props.user.email}
+          readOnly
           disabled
           className="mt-2 rounded-xl"
         />

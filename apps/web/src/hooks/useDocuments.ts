@@ -282,6 +282,7 @@ function toDocumentListShape(item: DocumentDetailItem): DocumentListItem {
     indexing_error: item.indexing_error,
     is_active: item.is_active,
     uploaded_by: item.uploaded_by,
+    uploaded_by_name: item.uploaded_by_name,
     created_at: item.created_at,
     updated_at: item.updated_at,
     is_upload_stale: item.is_upload_stale,

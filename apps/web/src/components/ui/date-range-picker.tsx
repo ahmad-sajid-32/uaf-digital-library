@@ -142,19 +142,31 @@ export function DateRangePicker({
           options={options}
           onChange={handleChange}
           disabled={disabled}
-          render={(props, ref) => (
-            <input
-              {...props}
-              ref={ref}
-              type="text"
-              aria-label={label ?? placeholder}
-              placeholder={placeholder}
-              className={cn(
-                "uaf-flatpickr-input h-10 w-full rounded-xl border border-border/70 bg-background py-2 pr-10 pl-9 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-                triggerClassName,
-              )}
-            />
-          )}
+          render={(props, ref) => {
+            const {
+              render: _render,
+              value: inputValue,
+              ...safeInputProps
+            } = props as React.ComponentProps<"input"> & {
+              render?: unknown;
+            };
+
+            return (
+              <input
+                {...safeInputProps}
+                ref={ref}
+                type="text"
+                value={typeof inputValue === "string" ? inputValue : undefined}
+                readOnly
+                aria-label={label ?? placeholder}
+                placeholder={placeholder}
+                className={cn(
+                  "uaf-flatpickr-input h-10 w-full rounded-xl border border-border/70 bg-background py-2 pr-10 pl-9 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+                  triggerClassName,
+                )}
+              />
+            );
+          }}
         />
         {hasSelection ? (
           <Button
