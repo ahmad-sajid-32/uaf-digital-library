@@ -5,7 +5,7 @@ UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
 - Enforce JWT validation (RS256 via Supabase JWKS).
-- Apply path exemptions (/health, GET /api/books).
+- Apply path exemptions (/health, public catalog reads, public book detail).
 - Validate issuer and audience.
 - Extract user_id (sub) ONLY.
 - Inject request_id into request context.
@@ -124,6 +124,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         Public routes:
         - /health (always public)
         - GET /api/books (public catalog read)
+        - GET /api/books/{book_id} (public book detail read)
         - GET /api/public/result (public LMS result lookup)
         - POST /api/auth/account-status (deleted account login check)
         - Swagger routes (only in non-production environments)
@@ -143,6 +144,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # Public book catalog read
         if method == "GET" and path == "/api/books":
             return True
+
+        # Public single-book detail read. Nested routes like /queue stay protected.
+        if method == "GET" and path.startswith("/api/books/"):
+            remainder = path[len("/api/books/"):]
+
+            if remainder and "/" not in remainder:
+                return True
 
         # Public LMS result lookup
         if method == "GET" and path == "/api/public/result":

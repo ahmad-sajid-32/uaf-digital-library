@@ -36,6 +36,7 @@ from core.middleware import AuthenticationMiddleware
 from core.rate_limit import RateLimitExceededError, build_rate_limit_response
 from core.security import SecurityHeadersMiddleware
 
+from modules.books.routes import admin_router as admin_books_router
 from modules.books.routes import router as books_router
 from modules.auth.routes import (
     public_router as public_auth_router,
@@ -132,6 +133,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # --------------------------------------------------
 
 app.include_router(books_router)
+app.include_router(admin_books_router)
 app.include_router(auth_router)
 app.include_router(public_auth_router)
 app.include_router(queue_router)

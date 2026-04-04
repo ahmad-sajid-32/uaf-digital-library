@@ -48,6 +48,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "exact",
     },
     {
+      id: "catalog",
+      label: "Catalog",
+      href: "/admin/catalog",
+      icon: "book-copy",
+      match: "startsWith",
+    },
+    {
       id: "users",
       label: "Users",
       href: "/admin/users",
@@ -91,7 +98,6 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       href: "/librarian/catalog",
       icon: "book-copy",
       match: "startsWith",
-      disabled: true,
     },
     {
       id: "circulation",

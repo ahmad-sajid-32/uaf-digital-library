@@ -28,16 +28,6 @@ import { DocumentStatusBadge } from "@/components/documents/document-status-badg
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -47,7 +37,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useDeleteDocument,
   useDocumentDetail,
   useDocumentReadUrl,
   useFinalizeDocument,
@@ -227,14 +216,12 @@ function DocumentDetailContent(props: {
   readUrlPending: boolean;
   activeReadAction: "preview" | "download" | null;
   finalizePending: boolean;
-  deletePending: boolean;
   readUrlError: string | null;
   finalizeError: string | null;
-  deleteError: string | null;
   onPreview: (item: DocumentDetailItem) => void | Promise<void>;
   onDownload: (item: DocumentDetailItem) => void | Promise<void>;
   onFinalize: (item: DocumentDetailItem) => void | Promise<void>;
-  onDeleteRequested: () => void;
+  onDeleteRequested: (item: DocumentDetailItem) => void;
 }): React.JSX.Element {
   const addedByName = props.item.uploaded_by_name?.trim() || "Staff member";
 
@@ -327,9 +314,9 @@ function DocumentDetailContent(props: {
           </CardContent>
         </Card>
 
-        {props.readUrlError || props.finalizeError || props.deleteError ? (
+        {props.readUrlError || props.finalizeError ? (
           <p className="text-sm font-medium text-destructive">
-            {props.readUrlError ?? props.finalizeError ?? props.deleteError}
+            {props.readUrlError ?? props.finalizeError}
           </p>
         ) : null}
       </div>
@@ -347,7 +334,7 @@ function DocumentDetailContent(props: {
               the document library from one place.
             </p>
 
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-col md:flex-row gap-2">
               <DetailActionButton
                 icon={Sparkles}
                 label="Preview"
@@ -379,10 +366,12 @@ function DocumentDetailContent(props: {
                 icon={Trash2}
                 label="Delete"
                 loadingLabel="Deleting..."
-                loading={props.deletePending}
-                disabled={props.deletePending || props.finalizePending}
+                loading={false}
+                disabled={props.finalizePending}
                 destructive
-                onClick={props.onDeleteRequested}
+                onClick={() => {
+                  props.onDeleteRequested(props.item);
+                }}
               />
             </div>
           </CardContent>
@@ -396,6 +385,7 @@ export function DocumentDetailDialog(props: {
   documentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleteRequested?: (item: DocumentDetailItem) => void;
 }): React.JSX.Element {
   const { item, loading, error, errorStatus, hasData, refreshing, retry } =
     useDocumentDetail(props.documentId, {
@@ -413,13 +403,6 @@ export function DocumentDetailDialog(props: {
     clearError: clearFinalizeError,
     finalize,
   } = useFinalizeDocument();
-  const {
-    destructivePending: deletePending,
-    error: deleteError,
-    clearError: clearDeleteError,
-    deleteDocument,
-  } = useDeleteDocument();
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [activeReadAction, setActiveReadAction] = React.useState<
     "preview" | "download" | null
   >(null);
@@ -472,189 +455,94 @@ export function DocumentDetailDialog(props: {
     [clearFinalizeError, finalize],
   );
 
-  const handleDeleteConfirm = React.useCallback(async () => {
-    if (!item) {
-      return;
-    }
-
-    clearDeleteError();
-    const succeeded = await deleteDocument(item.id);
-
-    if (succeeded) {
-      setDeleteConfirmOpen(false);
-      props.onOpenChange(false);
-    }
-  }, [clearDeleteError, deleteDocument, item, props]);
-
   return (
-    <>
-      <Dialog
-        open={props.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            clearReadUrlError();
-            clearFinalizeError();
-            clearDeleteError();
-            setActiveReadAction(null);
-          }
+    <Dialog
+      open={props.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          clearReadUrlError();
+          clearFinalizeError();
+          setActiveReadAction(null);
+        }
 
-          props.onOpenChange(open);
-        }}
-      >
-        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-4xl xl:min-w-6xl overflow-y-auto rounded-3xl border-border/70 p-0">
-          <div className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6 lg:px-8 lg:pb-8 lg:pt-8">
-            <DialogHeader className="space-y-3 text-left">
-              <DialogTitle className="font-display text-2xl font-black tracking-tight sm:text-3xl">
-                Document Detail
-              </DialogTitle>
-              <DialogDescription className="text-sm leading-6">
-                Review the full document record before opening it, finishing
-                setup again, or removing it from the library.
-              </DialogDescription>
-            </DialogHeader>
+        props.onOpenChange(open);
+      }}
+    >
+      <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-4xl xl:min-w-6xl overflow-y-auto rounded-3xl border-border/70 p-0">
+        <div className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6 lg:px-8 lg:pb-8 lg:pt-8">
+          <DialogHeader className="space-y-3 text-left">
+            <DialogTitle className="font-display text-2xl font-black tracking-tight sm:text-3xl">
+              Document Detail
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-6">
+              Review the full document record before opening it, finishing
+              setup again, or removing it from the library.
+            </DialogDescription>
+          </DialogHeader>
 
-            <Separator className="my-5" />
+          <Separator className="my-5" />
 
-            {loading && !hasData ? <DetailLoadingState /> : null}
+          {loading && !hasData ? <DetailLoadingState /> : null}
 
-            {!loading && !hasData && errorStatus === 404 ? (
-              <DetailStateCard
-                icon={CircleOff}
-                eyebrow="Not Found"
-                title="This document record is no longer available."
-                message={error ?? "The requested document could not be found."}
-                actionLabel="Retry"
-                onAction={retry}
-              />
-            ) : null}
+          {!loading && !hasData && errorStatus === 404 ? (
+            <DetailStateCard
+              icon={CircleOff}
+              eyebrow="Not Found"
+              title="This document record is no longer available."
+              message={error ?? "The requested document could not be found."}
+              actionLabel="Retry"
+              onAction={retry}
+            />
+          ) : null}
 
-            {!loading && !hasData && errorStatus === 403 ? (
-              <DetailStateCard
-                icon={Lock}
-                eyebrow="Permission Denied"
-                title="This document detail cannot be opened."
-                message={
-                  error ??
-                  "Your current account cannot access this document record."
-                }
-                actionLabel="Retry"
-                onAction={retry}
-              />
-            ) : null}
+          {!loading && !hasData && errorStatus === 403 ? (
+            <DetailStateCard
+              icon={Lock}
+              eyebrow="Permission Denied"
+              title="This document detail cannot be opened."
+              message={
+                error ??
+                "Your current account cannot access this document record."
+              }
+              actionLabel="Retry"
+              onAction={retry}
+            />
+          ) : null}
 
-            {!loading &&
-            !hasData &&
-            errorStatus !== 403 &&
-            errorStatus !== 404 &&
-            error ? (
-              <DetailStateCard
-                icon={AlertCircle}
-                eyebrow="Retry Required"
-                title="Unable to load this document right now."
-                message={error}
-                actionLabel="Retry"
-                onAction={retry}
-              />
-            ) : null}
-
-            {item ? (
-              <DocumentDetailContent
-                item={item}
-                refreshing={refreshing}
-                readUrlPending={readUrlPending}
-                activeReadAction={activeReadAction}
-                finalizePending={finalizePending}
-                deletePending={deletePending}
-                readUrlError={readUrlError}
-                finalizeError={finalizeError}
-                deleteError={deleteError}
-                onPreview={openPreview}
-                onDownload={openDownload}
-                onFinalize={handleFinalize}
-                onDeleteRequested={() => {
-                  clearDeleteError();
-                  setDeleteConfirmOpen(true);
-                }}
-              />
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={deleteConfirmOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            clearDeleteError();
-          }
-          setDeleteConfirmOpen(open);
-        }}
-      >
-        <AlertDialogContent className="max-w-2xl rounded-3xl border-border/70">
-          <AlertDialogHeader className="space-y-3 text-left">
-            <AlertDialogTitle className="font-display text-2xl font-black tracking-tight">
-              Delete Document
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm leading-6">
-              Delete this only when staff intends to remove it from the official
-              document library and the answer sources that rely on it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+          {!loading &&
+          !hasData &&
+          errorStatus !== 403 &&
+          errorStatus !== 404 &&
+          error ? (
+            <DetailStateCard
+              icon={AlertCircle}
+              eyebrow="Retry Required"
+              title="Unable to load this document right now."
+              message={error}
+              actionLabel="Retry"
+              onAction={retry}
+            />
+          ) : null}
 
           {item ? (
-            <Card className="rounded-2xl border-border/70 bg-muted/35 py-0 shadow-none">
-              <CardContent className="px-5 py-4">
-                <p className="font-semibold text-foreground">{item.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {item.original_filename}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Deleting this document removes it from the official document
-                  collection once cleanup is finished.
-                </p>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {deleteError ? (
-            <p className="text-sm font-medium text-destructive">
-              {deleteError}
-            </p>
-          ) : null}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              className="rounded-xl"
-              disabled={deletePending}
-              onClick={() => {
-                clearDeleteError();
+            <DocumentDetailContent
+              item={item}
+              refreshing={refreshing}
+              readUrlPending={readUrlPending}
+              activeReadAction={activeReadAction}
+              finalizePending={finalizePending}
+              readUrlError={readUrlError}
+              finalizeError={finalizeError}
+              onPreview={openPreview}
+              onDownload={openDownload}
+              onFinalize={handleFinalize}
+              onDeleteRequested={(detailItem) => {
+                props.onDeleteRequested?.(detailItem);
               }}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="rounded-xl border border-destructive/20 bg-destructive/8 text-destructive hover:bg-destructive/14 hover:text-destructive"
-              disabled={deletePending}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDeleteConfirm();
-              }}
-            >
-              {deletePending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Confirm Delete
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+            />
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

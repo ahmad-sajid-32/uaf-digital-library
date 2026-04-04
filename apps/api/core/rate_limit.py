@@ -29,6 +29,10 @@ logger = get_logger(__name__)
 RateLimitTier = Literal[
     "auth_public",
     "admin_auth",
+    "book_public_detail",
+    "book_queue_read",
+    "book_staff_read",
+    "book_mutation",
     "fine_read",
     "fine_settlement",
     "ai_retrieval",
@@ -98,6 +102,26 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="admin_auth",
             max_requests=settings.admin_auth_rate_limit_max_requests,
             window_seconds=settings.admin_auth_rate_limit_window_seconds,
+        ),
+        "book_public_detail": RateLimitPolicy(
+            tier="book_public_detail",
+            max_requests=settings.book_public_detail_rate_limit_max_requests,
+            window_seconds=settings.book_public_detail_rate_limit_window_seconds,
+        ),
+        "book_queue_read": RateLimitPolicy(
+            tier="book_queue_read",
+            max_requests=settings.book_queue_read_rate_limit_max_requests,
+            window_seconds=settings.book_queue_read_rate_limit_window_seconds,
+        ),
+        "book_staff_read": RateLimitPolicy(
+            tier="book_staff_read",
+            max_requests=settings.book_staff_read_rate_limit_max_requests,
+            window_seconds=settings.book_staff_read_rate_limit_window_seconds,
+        ),
+        "book_mutation": RateLimitPolicy(
+            tier="book_mutation",
+            max_requests=settings.book_mutation_rate_limit_max_requests,
+            window_seconds=settings.book_mutation_rate_limit_window_seconds,
         ),
         "fine_read": RateLimitPolicy(
             tier="fine_read",

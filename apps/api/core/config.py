@@ -111,6 +111,14 @@ class Settings:
     auth_public_rate_limit_max_requests: int
     admin_auth_rate_limit_window_seconds: int
     admin_auth_rate_limit_max_requests: int
+    book_public_detail_rate_limit_window_seconds: int
+    book_public_detail_rate_limit_max_requests: int
+    book_queue_read_rate_limit_window_seconds: int
+    book_queue_read_rate_limit_max_requests: int
+    book_staff_read_rate_limit_window_seconds: int
+    book_staff_read_rate_limit_max_requests: int
+    book_mutation_rate_limit_window_seconds: int
+    book_mutation_rate_limit_max_requests: int
     fine_read_rate_limit_window_seconds: int
     fine_read_rate_limit_max_requests: int
     fine_settlement_rate_limit_window_seconds: int
@@ -404,6 +412,30 @@ def load_settings() -> Settings:
         ),
         admin_auth_rate_limit_max_requests=int(
             _get_env("ADMIN_AUTH_RATE_LIMIT_MAX_REQUESTS", "40")
+        ),
+        book_public_detail_rate_limit_window_seconds=int(
+            _get_env("BOOK_PUBLIC_DETAIL_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        book_public_detail_rate_limit_max_requests=int(
+            _get_env("BOOK_PUBLIC_DETAIL_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        book_queue_read_rate_limit_window_seconds=int(
+            _get_env("BOOK_QUEUE_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        book_queue_read_rate_limit_max_requests=int(
+            _get_env("BOOK_QUEUE_READ_RATE_LIMIT_MAX_REQUESTS", "30")
+        ),
+        book_staff_read_rate_limit_window_seconds=int(
+            _get_env("BOOK_STAFF_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        book_staff_read_rate_limit_max_requests=int(
+            _get_env("BOOK_STAFF_READ_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        book_mutation_rate_limit_window_seconds=int(
+            _get_env("BOOK_MUTATION_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        book_mutation_rate_limit_max_requests=int(
+            _get_env("BOOK_MUTATION_RATE_LIMIT_MAX_REQUESTS", "20")
         ),
         fine_read_rate_limit_window_seconds=int(
             _get_env("FINE_READ_RATE_LIMIT_WINDOW_SECONDS", "60")

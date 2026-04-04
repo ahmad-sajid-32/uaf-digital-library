@@ -17,7 +17,6 @@
 import * as React from "react";
 import {
   AlertCircle,
-  Download,
   Eye,
   FilePlus2,
   FilterX,
@@ -79,7 +78,15 @@ import {
   useFinalizeDocument,
   type DocumentStatusFilter,
 } from "@/hooks/useDocuments";
-import type { DocumentListItem } from "@/lib/api/documents";
+import type {
+  DocumentDetailItem,
+  DocumentListItem,
+} from "@/lib/api/documents";
+
+type DeleteDialogTarget = Pick<
+  DocumentListItem,
+  "id" | "title" | "original_filename"
+>;
 
 function formatDateTime(value: string): string {
   const parsed = new Date(value);
@@ -603,7 +610,7 @@ export function StaffDocumentsListScreen(): React.JSX.Element {
   );
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [deleteTarget, setDeleteTarget] =
-    React.useState<DocumentListItem | null>(null);
+    React.useState<DeleteDialogTarget | null>(null);
 
   const openPreview = React.useCallback(
     async (item: DocumentListItem) => {
@@ -649,7 +656,7 @@ export function StaffDocumentsListScreen(): React.JSX.Element {
     [clearFinalizeError],
   );
   const openDeleteDialog = React.useCallback(
-    (item: DocumentListItem) => {
+    (item: DeleteDialogTarget) => {
       clearDeleteError();
       setDeleteTarget(item);
     },
@@ -685,6 +692,20 @@ export function StaffDocumentsListScreen(): React.JSX.Element {
       setDeleteTarget(null);
     }
   }, [clearDeleteError, deleteDocument, deleteTarget]);
+
+  const handleDetailDeleteRequested = React.useCallback(
+    (item: DocumentDetailItem) => {
+      clearDeleteError();
+      setDeleteTarget({
+        id: item.id,
+        title: item.title,
+        original_filename: item.original_filename,
+      });
+      setDetailOpen(false);
+      setDetailDocumentId(null);
+    },
+    [clearDeleteError],
+  );
 
   return (
     <PageContainer
@@ -973,6 +994,7 @@ export function StaffDocumentsListScreen(): React.JSX.Element {
             setDetailDocumentId(null);
           }
         }}
+        onDeleteRequested={handleDetailDeleteRequested}
       />
     </PageContainer>
   );

@@ -3,8 +3,9 @@
 Books Module - Service Layer
 
 Responsibilities:
-- Execute PostgreSQL RPC calls for public catalog and book management.
-- Inject request user identity into the database session context.
+- Execute PostgreSQL RPC calls for public catalog, staff inventory reads,
+  selected-book queue status, and book management.
+- Inject request user identity into the database session context where needed.
 - Preserve database validation messages for route-layer mapping.
 - Emit structured service-level logs.
 
@@ -15,6 +16,7 @@ Architectural Constraints:
 - PostgreSQL remains the source of truth for mutation policy.
 """
 
+import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -23,7 +25,11 @@ import asyncpg
 
 from core.database import Database
 from core.logging import get_logger
-from modules.books.schemas import CreateBookRequest, UpdateBookRequest
+from modules.books.schemas import (
+    CreateBookRequest,
+    StaffBooksListQueryParams,
+    UpdateBookRequest,
+)
 
 logger = get_logger(__name__)
 
@@ -179,6 +185,140 @@ class BooksService:
         )
 
         return result
+
+    @staticmethod
+    async def get_staff_books(
+        user_id: str,
+        query: StaffBooksListQueryParams,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve paginated staff inventory rows through PostgreSQL RPC.
+        """
+
+        logger.info(
+            "BOOKS: fetching staff inventory",
+            extra={
+                "user_id": user_id,
+                "limit": query.limit,
+                "offset": query.offset,
+            },
+        )
+
+        pool = Database.get_pool()
+
+        try:
+            async with pool.acquire() as connection:
+                await connection.execute(
+                    "select set_config('request.jwt.claim.sub', $1, true)",
+                    user_id,
+                )
+
+                raw = await connection.fetchval(
+                    """
+                    select library.get_staff_books(
+                        $1::uuid,
+                        $2::integer,
+                        $3::integer
+                    )
+                    """,
+                    user_id,
+                    query.limit,
+                    query.offset,
+                )
+        except asyncpg.PostgresError as exc:
+            logger.error(
+                "BOOKS: staff inventory RPC failed",
+                extra={
+                    "user_id": user_id,
+                    "limit": query.limit,
+                    "offset": query.offset,
+                    "sqlstate": exc.sqlstate,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError(str(exc)) from exc
+        except Exception as exc:
+            logger.error(
+                "BOOKS: staff inventory failed unexpectedly",
+                extra={
+                    "user_id": user_id,
+                    "limit": query.limit,
+                    "offset": query.offset,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError("Failed to fetch staff inventory") from exc
+
+        return BooksService._normalize_jsonb_mapping(
+            raw,
+            null_message="Staff inventory RPC returned null",
+            invalid_json_message="Staff inventory RPC returned invalid JSON",
+            invalid_shape_message="Staff inventory RPC returned non-object JSON",
+            unexpected_type_message="Staff inventory RPC returned unexpected payload type",
+            log_context={
+                "user_id": user_id,
+                "limit": query.limit,
+                "offset": query.offset,
+            },
+        )
+
+    @staticmethod
+    async def get_staff_book_by_id(
+        user_id: str,
+        book_id: UUID,
+    ) -> Dict[str, Any]:
+        """
+        Retrieve a single staff inventory book by UUID through PostgreSQL RPC.
+        """
+
+        logger.info(
+            "BOOKS: fetching staff book detail",
+            extra={"user_id": user_id, "book_id": str(book_id)},
+        )
+
+        pool = Database.get_pool()
+
+        try:
+            async with pool.acquire() as connection:
+                await connection.execute(
+                    "select set_config('request.jwt.claim.sub', $1, true)",
+                    user_id,
+                )
+
+                row = await connection.fetchrow(
+                    """
+                    select *
+                    from library.get_staff_book_by_id($1::uuid, $2::uuid)
+                    """,
+                    user_id,
+                    book_id,
+                )
+        except asyncpg.PostgresError as exc:
+            logger.error(
+                "BOOKS: staff book detail RPC failed",
+                extra={
+                    "user_id": user_id,
+                    "book_id": str(book_id),
+                    "sqlstate": exc.sqlstate,
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError(str(exc)) from exc
+        except Exception as exc:
+            logger.error(
+                "BOOKS: staff book detail failed unexpectedly",
+                extra={
+                    "user_id": user_id,
+                    "book_id": str(book_id),
+                    "error": str(exc),
+                },
+            )
+            raise RuntimeError("Failed to fetch staff book") from exc
+
+        if row is None:
+            raise RuntimeError("Book not found")
+
+        return dict(row)
 
     @staticmethod
     async def get_book_queue_status(book_id: UUID) -> Dict[str, Any]:
@@ -365,3 +505,62 @@ class BooksService:
                 },
             )
             raise RuntimeError(str(exc)) from exc
+
+    @staticmethod
+    def _normalize_jsonb_mapping(
+        raw: Any,
+        *,
+        null_message: str,
+        invalid_json_message: str,
+        invalid_shape_message: str,
+        unexpected_type_message: str,
+        log_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Normalize a json/jsonb RPC payload into a Python mapping.
+        """
+
+        if raw is None:
+            logger.error(
+                "BOOKS: jsonb RPC returned null",
+                extra=log_context,
+            )
+            raise RuntimeError(null_message)
+
+        if isinstance(raw, dict):
+            return raw
+
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                logger.error(
+                    "BOOKS: failed to decode jsonb RPC payload",
+                    extra={
+                        **log_context,
+                        "error": str(exc),
+                        "raw_preview": raw[:200],
+                    },
+                )
+                raise RuntimeError(invalid_json_message) from exc
+
+            if not isinstance(parsed, dict):
+                logger.error(
+                    "BOOKS: decoded jsonb payload is not an object",
+                    extra={
+                        **log_context,
+                        "decoded_type": type(parsed).__name__,
+                    },
+                )
+                raise RuntimeError(invalid_shape_message)
+
+            return parsed
+
+        logger.error(
+            "BOOKS: unexpected jsonb RPC return type",
+            extra={
+                **log_context,
+                "return_type": type(raw).__name__,
+            },
+        )
+        raise RuntimeError(unexpected_type_message)
