@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-composer.tsx
 /**
- * Docked chat composer for the admin assistant workspace.
+ * Docked chat composer for the assistant workspace.
  *
  * Purpose:
  * - Replace the detached dashboard-style form with a chat-native composer dock.

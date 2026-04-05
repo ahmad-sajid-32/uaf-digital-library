@@ -33,6 +33,8 @@ RateLimitTier = Literal[
     "book_queue_read",
     "book_staff_read",
     "book_mutation",
+    "circulation_read",
+    "circulation_mutation",
     "fine_read",
     "fine_settlement",
     "ai_conversation_read",
@@ -124,6 +126,16 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="book_mutation",
             max_requests=settings.book_mutation_rate_limit_max_requests,
             window_seconds=settings.book_mutation_rate_limit_window_seconds,
+        ),
+        "circulation_read": RateLimitPolicy(
+            tier="circulation_read",
+            max_requests=settings.circulation_read_rate_limit_max_requests,
+            window_seconds=settings.circulation_read_rate_limit_window_seconds,
+        ),
+        "circulation_mutation": RateLimitPolicy(
+            tier="circulation_mutation",
+            max_requests=settings.circulation_mutation_rate_limit_max_requests,
+            window_seconds=settings.circulation_mutation_rate_limit_window_seconds,
         ),
         "fine_read": RateLimitPolicy(
             tier="fine_read",

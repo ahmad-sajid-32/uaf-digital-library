@@ -1,9 +1,9 @@
 // apps/web/src/components/assistant/admin-assistant-screen.tsx
 /**
- * Admin assistant workspace for the authenticated shell.
+ * Assistant workspace for the authenticated shell.
  *
  * Purpose:
- * - Render the admin assistant as a chat-first workspace instead of a
+ * - Render the shared assistant as a chat-first workspace instead of a
  *   dashboard module.
  * - Keep the backend conversation contract unchanged while restructuring the
  *   frontend around history, thread, and docked composer responsibilities.

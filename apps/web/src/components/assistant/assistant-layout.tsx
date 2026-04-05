@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-layout.tsx
 /**
- * Chat-first workspace layout for the admin assistant screen.
+ * Chat-first workspace layout for the assistant screen.
  *
  * Purpose:
  * - Replace the dashboard-style grid with one continuous assistant workspace.

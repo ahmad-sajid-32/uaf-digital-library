@@ -1,9 +1,9 @@
 # apps/api/modules/ai/assistant_service.py
 """
-Conversation orchestration service for the admin AI assistant module.
+Conversation orchestration service for the AI assistant module.
 
 Responsibilities:
-- Enforce authenticated admin access for assistant conversations.
+- Enforce authenticated owner access for assistant conversations.
 - Persist assistant conversations, messages, and citations in PostgreSQL.
 - Reuse the existing retrieval and grounded-generation stack for each turn.
 - Keep route handlers thin and return normalized conversation/message payloads.
@@ -27,7 +27,7 @@ RECENT_HISTORY_LIMIT = 8
 
 class AssistantService:
     """
-    Route-facing conversation and message orchestration for the admin assistant.
+    Route-facing conversation and message orchestration for the shared assistant.
     """
 
     @staticmethod
@@ -37,7 +37,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 rows = await connection.fetch(
                     """
                     select
@@ -89,7 +88,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 row = await AssistantService._fetch_conversation_summary_row(
                     connection,
                     user_id=user_id,
@@ -122,7 +120,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 await AssistantService._require_conversation_owner(
                     connection,
                     user_id=user_id,
@@ -184,7 +181,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 await AssistantService._require_conversation_owner(
                     connection,
                     user_id=user_id,
@@ -231,7 +227,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 result = await connection.execute(
                     """
                     delete from library.ai_conversations
@@ -277,7 +272,6 @@ class AssistantService:
             async with pool.acquire() as connection:
                 async with connection.transaction():
                     await AssistantService._set_request_identity(connection, user_id)
-                    await AssistantService._require_admin(connection, user_id)
 
                     conversation_row = await connection.fetchrow(
                         """
@@ -375,7 +369,6 @@ class AssistantService:
         try:
             async with pool.acquire() as connection:
                 await AssistantService._set_request_identity(connection, user_id)
-                await AssistantService._require_admin(connection, user_id)
                 await AssistantService._require_conversation_owner(
                     connection,
                     user_id=user_id,
@@ -409,7 +402,6 @@ class AssistantService:
             async with pool.acquire() as connection:
                 async with connection.transaction():
                     await AssistantService._set_request_identity(connection, user_id)
-                    await AssistantService._require_admin(connection, user_id)
                     await AssistantService._require_conversation_owner(
                         connection,
                         user_id=user_id,
@@ -487,23 +479,6 @@ class AssistantService:
             "select set_config('request.jwt.claim.sub', $1, true)",
             user_id,
         )
-
-    @staticmethod
-    async def _require_admin(
-        connection: asyncpg.Connection,
-        user_id: str,
-    ) -> None:
-        role = await connection.fetchval(
-            """
-            select role::text
-            from library.profiles
-            where id = $1::uuid
-            """,
-            user_id,
-        )
-
-        if role != "admin":
-            raise RuntimeError("Insufficient privileges")
 
     @staticmethod
     async def _require_conversation_owner(

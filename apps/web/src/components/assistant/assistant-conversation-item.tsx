@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-conversation-item.tsx
 /**
- * Conversation-history row for the admin assistant sidebar.
+ * Conversation-history row for the assistant sidebar.
  *
  * Purpose:
  * - Present one conversation in either expanded row mode or collapsed rail
@@ -94,15 +94,15 @@ export function AssistantConversationItemRow({
           onSelect(conversation.id);
         }}
         className={cn(
-          "flex w-full items-center justify-center rounded-2xl border px-0 py-0 transition-colors",
+          "border-l-3  text-muted-foreground transition-colors",
           isActive
-            ? "border-primary/35 bg-primary/10 text-primary"
-            : "border-border/60 bg-background/70 text-muted-foreground hover:border-primary/20 hover:bg-primary/6 hover:text-foreground",
+            ? "border-primary text-primary"
+            : "border-transparent hover:border-primary/30 hover:text-foreground",
         )}
         aria-label={conversation.title}
         title={conversation.title}
       >
-        <span className="flex h-11 w-11 items-center justify-center text-sm font-bold">
+        <span className="flex h-10 w-full items-center justify-center text-sm font-bold">
           {getConversationMonogram(conversation.title)}
         </span>
       </button>
@@ -115,7 +115,7 @@ export function AssistantConversationItemRow({
         "group/item border-l-3 transition-colors",
         isActive
           ? "border-primary bg-primary/6"
-          : "border-transparent bg-transparent hover:border-primary/20 hover:bg-background/40",
+          : "border-transparent bg-transparent hover:border-primary/30 hover:bg-background/40",
       )}
     >
       <div className="flex items-start gap-2 px-3 py-2.5">

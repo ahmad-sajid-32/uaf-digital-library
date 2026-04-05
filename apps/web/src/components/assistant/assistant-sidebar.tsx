@@ -37,20 +37,32 @@ function AssistantSidebarLoadingState({
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={`assistant-sidebar-rail-skeleton-${index + 1}`}
-            className="h-11 rounded-2xl border border-border/60 bg-background/65"
-          />
+            className="border-l-2 border-transparent px-2 py-1"
+          >
+            <div className="flex h-10 items-center justify-center">
+              <div className="h-6 w-6 rounded-full bg-muted/35" />
+            </div>
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-1">
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           key={`assistant-sidebar-skeleton-${index + 1}`}
-          className="h-22 rounded-2xl border border-border/60 bg-background/65"
-        />
+          className="border-l-2 border-transparent px-3 py-2.5"
+        >
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="h-4 w-34 rounded-full bg-muted/35" />
+              <div className="h-3 w-16 rounded-full bg-muted/25" />
+            </div>
+            <div className="h-3.5 w-28 rounded-full bg-muted/28" />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -89,7 +101,7 @@ export function AssistantSidebar({
 }): React.JSX.Element {
   if (collapsed && !mobile) {
     return (
-      <div className="flex h-full min-h-0 w-full flex-col items-center gap-3 px-3 py-3">
+      <div className="flex h-full min-h-0 w-full flex-col items-center gap-3 py-3">
         <div className="grid gap-2">
           <Button
             type="button"

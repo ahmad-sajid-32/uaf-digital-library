@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-message.tsx
 /**
- * Message rendering for the admin assistant thread.
+ * Message rendering for the assistant thread.
  *
  * Purpose:
  * - Replace the old badge-heavy card treatment with cleaner chat hierarchy.

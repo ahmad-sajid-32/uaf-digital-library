@@ -69,6 +69,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
+      id: "circulation",
+      label: "Circulation",
+      href: "/admin/circulation",
+      icon: "library-big",
+      match: "startsWith",
+    },
+    {
       id: "analytics",
       label: "Analytics",
       href: "/admin/analytics",
@@ -112,7 +119,6 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       href: "/librarian/circulation",
       icon: "library-big",
       match: "startsWith",
-      disabled: true,
     },
     {
       id: "fines",
@@ -126,6 +132,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       label: "Documents",
       href: "/librarian/documents",
       icon: "scroll-text",
+      match: "startsWith",
+    },
+    {
+      id: "assistant",
+      label: "Assistant",
+      href: "/librarian/assistant",
+      icon: "bot-message-square",
       match: "startsWith",
     },
   ],
@@ -152,6 +165,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       icon: "credit-card",
       match: "startsWith",
       disabled: true,
+    },
+    {
+      id: "assistant",
+      label: "Assistant",
+      href: "/student/assistant",
+      icon: "bot-message-square",
+      match: "startsWith",
     },
   ],
 };

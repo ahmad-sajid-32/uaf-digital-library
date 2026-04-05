@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-thread.tsx
 /**
- * Main conversation surface for the admin assistant workspace.
+ * Main conversation surface for the assistant workspace.
  *
  * Purpose:
  * - Keep the thread as the primary product surface instead of another card.
@@ -38,13 +38,30 @@ function AssistantThreadLoadingState(): React.JSX.Element {
           key={`assistant-thread-skeleton-${index + 1}`}
           className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
         >
-          <div
-            className={`rounded-3xl border border-border/50 bg-muted/25 ${
-              index % 2 === 0
-                ? "h-28 w-full max-w-3xl"
-                : "h-24 w-full max-w-2xl"
-            }`}
-          />
+          <div className={`space-y-2 ${index % 2 === 0 ? "w-full max-w-3xl" : "w-full max-w-2xl"}`}>
+            {index % 2 === 0 ? (
+              <>
+                <div className="h-3 w-24 rounded-full bg-muted/30" />
+                <div className="rounded-2xl bg-muted/22 px-4 py-4">
+                  <div className="grid gap-2">
+                    <div className="h-4 w-32 rounded-full bg-muted/35" />
+                    <div className="h-4 w-full max-w-2xl rounded-full bg-muted/30" />
+                    <div className="h-4 w-48 rounded-full bg-muted/25" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-2xl bg-muted/28 px-4 py-4">
+                  <div className="grid gap-2">
+                    <div className="h-4 w-56 rounded-full bg-muted/35" />
+                    <div className="h-4 w-36 rounded-full bg-muted/28" />
+                  </div>
+                </div>
+                <div className="ml-auto h-3 w-28 rounded-full bg-muted/25" />
+              </>
+            )}
+          </div>
         </div>
       ))}
     </div>

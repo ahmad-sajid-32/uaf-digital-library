@@ -1,6 +1,6 @@
 -- supabase/tests/database/admin_ai_assistant_foundation_verification.sql
 --
--- Verification script for the Admin AI Assistant database foundation.
+-- Verification script for the shared AI Assistant database foundation.
 --
 -- Purpose:
 -- - Assert that the assistant enum, tables, indexes, and RLS policies exist.
@@ -115,7 +115,7 @@ begin
         from pg_policies
         where schemaname = 'library'
           and tablename = 'ai_conversations'
-          and policyname = 'admin_owner_manage_ai_conversations'
+          and policyname = 'owner_manage_ai_conversations'
     ) then
         raise exception 'Verification failed: conversation ownership policy is missing';
     end if;
@@ -125,7 +125,7 @@ begin
         from pg_policies
         where schemaname = 'library'
           and tablename = 'ai_messages'
-          and policyname = 'admin_owner_manage_ai_messages'
+          and policyname = 'owner_manage_ai_messages'
     ) then
         raise exception 'Verification failed: message ownership policy is missing';
     end if;
@@ -135,7 +135,7 @@ begin
         from pg_policies
         where schemaname = 'library'
           and tablename = 'ai_message_citations'
-          and policyname = 'admin_owner_manage_ai_message_citations'
+          and policyname = 'owner_manage_ai_message_citations'
     ) then
         raise exception 'Verification failed: citation ownership policy is missing';
     end if;
@@ -221,4 +221,4 @@ begin
 end;
 $$;
 
-select 'admin_ai_assistant_foundation_verification: ok' as verification_status;
+select 'ai_assistant_foundation_verification: ok' as verification_status;

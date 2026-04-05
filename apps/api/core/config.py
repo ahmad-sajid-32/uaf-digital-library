@@ -119,6 +119,10 @@ class Settings:
     book_staff_read_rate_limit_max_requests: int
     book_mutation_rate_limit_window_seconds: int
     book_mutation_rate_limit_max_requests: int
+    circulation_read_rate_limit_window_seconds: int
+    circulation_read_rate_limit_max_requests: int
+    circulation_mutation_rate_limit_window_seconds: int
+    circulation_mutation_rate_limit_max_requests: int
     fine_read_rate_limit_window_seconds: int
     fine_read_rate_limit_max_requests: int
     fine_settlement_rate_limit_window_seconds: int
@@ -440,6 +444,18 @@ def load_settings() -> Settings:
         ),
         book_mutation_rate_limit_max_requests=int(
             _get_env("BOOK_MUTATION_RATE_LIMIT_MAX_REQUESTS", "20")
+        ),
+        circulation_read_rate_limit_window_seconds=int(
+            _get_env("CIRCULATION_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        circulation_read_rate_limit_max_requests=int(
+            _get_env("CIRCULATION_READ_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        circulation_mutation_rate_limit_window_seconds=int(
+            _get_env("CIRCULATION_MUTATION_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        circulation_mutation_rate_limit_max_requests=int(
+            _get_env("CIRCULATION_MUTATION_RATE_LIMIT_MAX_REQUESTS", "20")
         ),
         fine_read_rate_limit_window_seconds=int(
             _get_env("FINE_READ_RATE_LIMIT_WINDOW_SECONDS", "60")

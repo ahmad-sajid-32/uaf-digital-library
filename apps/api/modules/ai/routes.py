@@ -6,7 +6,7 @@ UAF Smart E-Library & University Information Assistant.
 Purpose:
 - Preserve the legacy AI retrieval and one-shot answer endpoints for admin-only
   debugging and compatibility.
-- Expose the real admin assistant contract through persisted conversation and
+- Expose the shared assistant contract through persisted conversation and
   message APIs.
 - Keep generation, retrieval, and persistence orchestration out of route
   handlers.
@@ -55,7 +55,7 @@ logger = get_logger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 router = APIRouter(prefix="/api/ai", tags=["AI"])
-admin_router = APIRouter(prefix="/api/admin/ai", tags=["Admin AI Assistant"])
+assistant_router = APIRouter(prefix="/api/ai", tags=["AI Assistant"])
 
 LEGACY_AI_ERROR_RESPONSES = {
     401: {"description": "Authentication required"},
@@ -356,7 +356,7 @@ async def query_grounded_answer(
     )
 
 
-@admin_router.get(
+@assistant_router.get(
     "/conversations",
     response_model=AssistantConversationListResponse,
     responses={
@@ -375,7 +375,7 @@ async def list_assistant_conversations(
     request: Request,
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantConversationListResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     rate_limit_tier: RateLimitTier = "ai_conversation_read"
 
     await _enforce_ai_rate_limit(
@@ -401,7 +401,7 @@ async def list_assistant_conversations(
     )
 
 
-@admin_router.post(
+@assistant_router.post(
     "/conversations",
     response_model=AssistantTurnResponse,
     responses={
@@ -429,7 +429,7 @@ async def create_assistant_conversation(
     ),
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantTurnResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     request_id = getattr(request.state, "request_id", None)
     rate_limit_tier: RateLimitTier = "ai_generation"
 
@@ -461,7 +461,7 @@ async def create_assistant_conversation(
     )
 
 
-@admin_router.get(
+@assistant_router.get(
     "/conversations/{conversation_id}",
     response_model=AssistantConversationResponse,
     responses={
@@ -490,7 +490,7 @@ async def get_assistant_conversation(
     conversation_id: UUID,
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantConversationResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     rate_limit_tier: RateLimitTier = "ai_conversation_read"
 
     await _enforce_ai_rate_limit(
@@ -520,7 +520,7 @@ async def get_assistant_conversation(
     )
 
 
-@admin_router.get(
+@assistant_router.get(
     "/conversations/{conversation_id}/messages",
     response_model=AssistantConversationMessagesResponse,
     responses={
@@ -540,7 +540,7 @@ async def get_assistant_messages(
     conversation_id: UUID,
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantConversationMessagesResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     rate_limit_tier: RateLimitTier = "ai_conversation_read"
 
     await _enforce_ai_rate_limit(
@@ -573,7 +573,7 @@ async def get_assistant_messages(
     )
 
 
-@admin_router.post(
+@assistant_router.post(
     "/conversations/{conversation_id}/messages",
     response_model=AssistantTurnResponse,
     responses={
@@ -602,7 +602,7 @@ async def append_assistant_message(
     ),
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantTurnResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     request_id = getattr(request.state, "request_id", None)
     rate_limit_tier: RateLimitTier = "ai_generation"
 
@@ -635,7 +635,7 @@ async def append_assistant_message(
     )
 
 
-@admin_router.patch(
+@assistant_router.patch(
     "/conversations/{conversation_id}",
     response_model=AssistantConversationResponse,
     responses={
@@ -673,7 +673,7 @@ async def rename_assistant_conversation(
     ),
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantConversationResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     rate_limit_tier: RateLimitTier = "ai_conversation_write"
 
     await _enforce_ai_rate_limit(
@@ -704,7 +704,7 @@ async def rename_assistant_conversation(
     )
 
 
-@admin_router.delete(
+@assistant_router.delete(
     "/conversations/{conversation_id}",
     response_model=AssistantDeleteConversationResponse,
     responses={
@@ -719,7 +719,7 @@ async def delete_assistant_conversation(
     conversation_id: UUID,
     _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> AssistantDeleteConversationResponse:
-    user_id = _require_admin_user_id(request)
+    user_id = _require_user_id(request)
     rate_limit_tier: RateLimitTier = "ai_conversation_write"
 
     await _enforce_ai_rate_limit(

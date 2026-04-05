@@ -2,10 +2,10 @@
 
 // apps/web/src/hooks/useAssistant.ts
 /**
- * Unified admin assistant hook/state boundary.
+ * Unified assistant hook/state boundary.
  *
  * Purpose:
- * - Keep the admin assistant module state in one hook file.
+ * - Keep the shared assistant module state in one hook file.
  * - Centralize conversation history loading, active-thread loading, query
  *   submission, and conversation rename/delete orchestration.
  * - Preserve the backend as the only source of persisted assistant memory.

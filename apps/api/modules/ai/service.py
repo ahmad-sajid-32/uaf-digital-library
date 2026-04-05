@@ -6,7 +6,7 @@ UAF Smart E-Library & University Information Assistant.
 Responsibilities:
 - Normalize route-facing retrieval and answer input.
 - Apply configured defaults and clamps for the legacy AI endpoints.
-- Resolve backend-owned assistant intent profiles for the admin assistant flow.
+- Resolve backend-owned assistant intent profiles for the shared assistant flow.
 - Build strict grounded-answer payloads with deterministic fallback handling.
 - Keep retrieval tuning and assistant context assembly out of route handlers.
 """

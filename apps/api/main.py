@@ -44,6 +44,7 @@ from modules.auth.routes import (
 )
 from modules.queue.routes import router as queue_router
 from modules.borrow.routes import router as borrow_router
+from modules.circulation.routes import router as circulation_router
 from modules.me.routes import router as me_router
 from modules.fines.routes import router as fines_router
 from modules.admin_fines.routes import router as admin_fines_router
@@ -53,7 +54,7 @@ from modules.results.routes import (
     router as results_router,
 )
 from modules.documents.routes import router as documents_router
-from modules.ai.routes import admin_router as admin_ai_router
+from modules.ai.routes import assistant_router
 from modules.ai.routes import router as ai_router
 
 
@@ -139,6 +140,7 @@ app.include_router(auth_router)
 app.include_router(public_auth_router)
 app.include_router(queue_router)
 app.include_router(borrow_router)
+app.include_router(circulation_router)
 app.include_router(me_router)
 app.include_router(fines_router)
 app.include_router(admin_fines_router)
@@ -147,7 +149,7 @@ app.include_router(results_router)
 app.include_router(public_results_router)
 app.include_router(documents_router)
 app.include_router(ai_router)
-app.include_router(admin_ai_router)
+app.include_router(assistant_router)
 
 
 # --------------------------------------------------

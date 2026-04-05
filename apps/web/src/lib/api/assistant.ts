@@ -2,10 +2,10 @@ import "client-only";
 
 // apps/web/src/lib/api/assistant.ts
 /**
- * Admin assistant API client for the UAF Smart E-Library frontend.
+ * Assistant API client for the UAF Smart E-Library frontend.
  *
  * Purpose:
- * - Centralize authenticated requests for the admin-only assistant module.
+ * - Centralize authenticated requests for the shared assistant module.
  * - Mirror the persisted conversation/message backend contract without
  *   exposing retrieval controls in the frontend request surface.
  * - Preserve backend error messages from the normalized JSON envelope.
@@ -108,6 +108,16 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
   signal?: AbortSignal;
 };
 
+function throwIfRequestAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) {
+    return;
+  }
+
+  const error = new Error("The request was aborted.");
+  error.name = "AbortError";
+  throw error;
+}
+
 function getApiBaseUrl(): string {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -156,7 +166,9 @@ async function assistantApiRequest<TData>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<BackendSuccessEnvelope<TData>> {
+  throwIfRequestAborted(options.signal);
   const accessToken = await getAccessToken();
+  throwIfRequestAborted(options.signal);
   const headers = new Headers(options.headers);
   const baseUrl = getApiBaseUrl();
 
@@ -170,6 +182,7 @@ async function assistantApiRequest<TData>(
     body = JSON.stringify(options.body);
   }
 
+  throwIfRequestAborted(options.signal);
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers,
@@ -201,7 +214,7 @@ export async function getAssistantConversations(
   options: { signal?: AbortSignal } = {},
 ): Promise<BackendSuccessEnvelope<AssistantConversationListData>> {
   return assistantApiRequest<AssistantConversationListData>(
-    "/api/admin/ai/conversations",
+    "/api/ai/conversations",
     {
       method: "GET",
       signal: options.signal,
@@ -212,7 +225,7 @@ export async function getAssistantConversations(
 export async function createAssistantConversation(
   payload: AssistantAskPayload,
 ): Promise<BackendSuccessEnvelope<AssistantTurnData>> {
-  return assistantApiRequest<AssistantTurnData>("/api/admin/ai/conversations", {
+  return assistantApiRequest<AssistantTurnData>("/api/ai/conversations", {
     method: "POST",
     body: payload,
   });
@@ -223,7 +236,7 @@ export async function getAssistantConversation(
   options: { signal?: AbortSignal } = {},
 ): Promise<BackendSuccessEnvelope<AssistantConversationData>> {
   return assistantApiRequest<AssistantConversationData>(
-    `/api/admin/ai/conversations/${conversationId}`,
+    `/api/ai/conversations/${conversationId}`,
     {
       method: "GET",
       signal: options.signal,
@@ -236,7 +249,7 @@ export async function getAssistantMessages(
   options: { signal?: AbortSignal } = {},
 ): Promise<BackendSuccessEnvelope<AssistantConversationMessagesData>> {
   return assistantApiRequest<AssistantConversationMessagesData>(
-    `/api/admin/ai/conversations/${conversationId}/messages`,
+    `/api/ai/conversations/${conversationId}/messages`,
     {
       method: "GET",
       signal: options.signal,
@@ -249,7 +262,7 @@ export async function appendAssistantMessage(
   payload: AssistantAskPayload,
 ): Promise<BackendSuccessEnvelope<AssistantTurnData>> {
   return assistantApiRequest<AssistantTurnData>(
-    `/api/admin/ai/conversations/${conversationId}/messages`,
+    `/api/ai/conversations/${conversationId}/messages`,
     {
       method: "POST",
       body: payload,
@@ -262,7 +275,7 @@ export async function renameAssistantConversation(
   payload: AssistantRenameConversationPayload,
 ): Promise<BackendSuccessEnvelope<AssistantConversationData>> {
   return assistantApiRequest<AssistantConversationData>(
-    `/api/admin/ai/conversations/${conversationId}`,
+    `/api/ai/conversations/${conversationId}`,
     {
       method: "PATCH",
       body: payload,
@@ -274,7 +287,7 @@ export async function deleteAssistantConversation(
   conversationId: string,
 ): Promise<BackendSuccessEnvelope<Record<string, never>>> {
   return assistantApiRequest<Record<string, never>>(
-    `/api/admin/ai/conversations/${conversationId}`,
+    `/api/ai/conversations/${conversationId}`,
     {
       method: "DELETE",
     },
