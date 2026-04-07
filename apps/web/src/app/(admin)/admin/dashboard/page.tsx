@@ -1,5 +1,5 @@
-import { RoleDashboardRoot } from "@/components/dashboard/role-dashboard-root";
+import { AdminMetricsDashboardScreen } from "@/components/dashboard/admin-metrics-dashboard-screen";
 
 export default function AdminDashboardPage() {
-  return <RoleDashboardRoot role="admin" />;
+  return <AdminMetricsDashboardScreen />;
 }

@@ -29,6 +29,7 @@ logger = get_logger(__name__)
 RateLimitTier = Literal[
     "auth_public",
     "admin_auth",
+    "metrics_read",
     "book_public_detail",
     "book_queue_read",
     "book_staff_read",
@@ -106,6 +107,11 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="admin_auth",
             max_requests=settings.admin_auth_rate_limit_max_requests,
             window_seconds=settings.admin_auth_rate_limit_window_seconds,
+        ),
+        "metrics_read": RateLimitPolicy(
+            tier="metrics_read",
+            max_requests=settings.metrics_read_rate_limit_max_requests,
+            window_seconds=settings.metrics_read_rate_limit_window_seconds,
         ),
         "book_public_detail": RateLimitPolicy(
             tier="book_public_detail",

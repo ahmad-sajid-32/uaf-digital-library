@@ -111,6 +111,8 @@ class Settings:
     auth_public_rate_limit_max_requests: int
     admin_auth_rate_limit_window_seconds: int
     admin_auth_rate_limit_max_requests: int
+    metrics_read_rate_limit_window_seconds: int
+    metrics_read_rate_limit_max_requests: int
     book_public_detail_rate_limit_window_seconds: int
     book_public_detail_rate_limit_max_requests: int
     book_queue_read_rate_limit_window_seconds: int
@@ -420,6 +422,12 @@ def load_settings() -> Settings:
         ),
         admin_auth_rate_limit_max_requests=int(
             _get_env("ADMIN_AUTH_RATE_LIMIT_MAX_REQUESTS", "40")
+        ),
+        metrics_read_rate_limit_window_seconds=int(
+            _get_env("METRICS_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        metrics_read_rate_limit_max_requests=int(
+            _get_env("METRICS_READ_RATE_LIMIT_MAX_REQUESTS", "30")
         ),
         book_public_detail_rate_limit_window_seconds=int(
             _get_env("BOOK_PUBLIC_DETAIL_RATE_LIMIT_WINDOW_SECONDS", "60")

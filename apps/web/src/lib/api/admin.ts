@@ -6,8 +6,8 @@ import "client-only";
  *
  * Purpose:
  * - Centralize authenticated requests from the admin UI to the FastAPI backend.
- * - Mirror the current backend contract for admin dashboard metrics and
- *   admin-managed user list/detail/create/update/status/delete flows.
+ * - Mirror the current backend contract for admin-managed user
+ *   list/detail/create/update/status/delete flows.
  * - Preserve backend error messages from the standardized JSON envelope so
  *   UI components can show truthful feedback instead of invented messages.
  *
@@ -47,35 +47,6 @@ export class AdminApiError extends Error {
 
 export function isAdminApiError(error: unknown): error is AdminApiError {
   return error instanceof AdminApiError;
-}
-
-export interface PopularBookMetric {
-  book_id: string;
-  title: string;
-  borrow_count: number;
-}
-
-export interface QueuePressureMetric {
-  book_id: string;
-  title: string;
-  waiting_count: number;
-}
-
-export interface AdminDashboardMetrics {
-  active_borrow_count: number;
-  overdue_count: number;
-  total_pending_fines: number | string;
-  popular_books: PopularBookMetric[];
-  queue_pressure: QueuePressureMetric[];
-}
-
-export type AdminDashboardMetricsResponse =
-  BackendSuccessEnvelope<AdminDashboardMetrics>;
-
-export interface GetAdminDashboardMetricsOptions {
-  popularLimit?: number;
-  queueLimit?: number;
-  signal?: AbortSignal;
 }
 
 export interface AdminCreatedUser {
@@ -302,30 +273,6 @@ async function adminApiRequest<TData>(
   }
 
   return payload as BackendSuccessEnvelope<TData>;
-}
-
-export async function getAdminDashboardMetrics(
-  options: GetAdminDashboardMetricsOptions = {},
-): Promise<AdminDashboardMetricsResponse> {
-  const searchParams = new URLSearchParams();
-
-  if (options.popularLimit !== undefined) {
-    searchParams.set("popular_limit", String(options.popularLimit));
-  }
-
-  if (options.queueLimit !== undefined) {
-    searchParams.set("queue_limit", String(options.queueLimit));
-  }
-
-  const query = searchParams.toString();
-
-  return adminApiRequest<AdminDashboardMetrics>(
-    `/api/admin/metrics/dashboard${query ? `?${query}` : ""}`,
-    {
-      method: "GET",
-      signal: options.signal,
-    },
-  );
 }
 
 export async function createStudentAccount(

@@ -76,14 +76,6 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
-      id: "analytics",
-      label: "Analytics",
-      href: "/admin/analytics",
-      icon: "bar-chart-3",
-      match: "startsWith",
-      disabled: true,
-    },
-    {
       id: "documents",
       label: "Documents",
       href: "/admin/documents",
