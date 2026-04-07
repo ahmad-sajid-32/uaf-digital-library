@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Activity,
   AlertCircle,
+  ArrowRight,
+  ArrowUpRight,
   BotMessageSquare,
   BookCopy,
   Clock3,
@@ -13,15 +16,13 @@ import {
   LoaderCircle,
   RefreshCw,
   ShieldAlert,
+  TrendingUp,
   Users,
+  Zap,
 } from "lucide-react";
 
 import { PageContainer } from "@/components/app-shell";
 import { DashboardLoadingState } from "@/components/dashboard/dashboard-loading-state";
-import {
-  DashboardQuickLinks,
-  type DashboardQuickLinkItem,
-} from "@/components/dashboard/dashboard-quick-links";
 import {
   DashboardActivityContour,
   DashboardBarChart,
@@ -41,44 +42,69 @@ import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { useAdminMetrics } from "@/hooks/useAdminMetrics";
 import { cn } from "@/lib/utils";
 
-const QUICK_LINKS: DashboardQuickLinkItem[] = [
+/* ───────────────────────────── Quick-link config ───────────────────────────── */
+
+interface QuickLinkItem {
+  title: string;
+  summary: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  iconBg: string;
+}
+
+const QUICK_LINKS: QuickLinkItem[] = [
   {
     title: "Circulation",
-    summary: "Inspect active, overdue, and returned loan supervision.",
+    summary: "Active, overdue & returned loan supervision.",
     href: "/admin/circulation",
     icon: LibraryBig,
+    gradient: "from-violet-500/10 to-purple-600/5",
+    iconBg: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   },
   {
     title: "Fines",
-    summary: "Review unsettled balances and overdue-linked fine records.",
+    summary: "Unsettled balances & overdue-linked records.",
     href: "/admin/fines",
     icon: CreditCard,
+    gradient: "from-amber-500/10 to-orange-600/5",
+    iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   },
   {
     title: "Catalog",
-    summary: "Open the staff inventory workspace for book management.",
+    summary: "Staff inventory & book management.",
     href: "/admin/catalog",
     icon: BookCopy,
+    gradient: "from-emerald-500/10 to-teal-600/5",
+    iconBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   },
   {
     title: "Users",
-    summary: "Jump into the administrative user-management module.",
+    summary: "Administrative user-management module.",
     href: "/admin/users",
     icon: Users,
+    gradient: "from-blue-500/10 to-indigo-600/5",
+    iconBg: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
   },
   {
     title: "Documents",
-    summary: "Review institutional documents and processing state.",
+    summary: "Institutional documents & processing state.",
     href: "/admin/documents",
     icon: FileText,
+    gradient: "from-rose-500/10 to-pink-600/5",
+    iconBg: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   },
   {
     title: "Assistant",
-    summary: "Ask grounded questions against official institutional documents.",
+    summary: "AI-grounded queries against official docs.",
     href: "/admin/assistant",
     icon: BotMessageSquare,
+    gradient: "from-cyan-500/10 to-sky-600/5",
+    iconBg: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
   },
 ];
+
+/* ─────────────────────────── Formatting helpers ─────────────────────────── */
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("en-PK").format(value);
@@ -93,67 +119,237 @@ function formatMoney(value: number): string {
 }
 
 function formatRelativeTime(value: number | null): string {
-  if (!value) {
-    return "Not loaded yet";
-  }
-
+  if (!value) return "Not loaded yet";
   const diffMinutes = Math.max(1, Math.round((Date.now() - value) / 60000));
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes} minutes ago`;
-  }
-
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
   const diffHours = Math.round(diffMinutes / 60);
-
-  if (diffHours < 24) {
-    return `${diffHours} hours ago`;
-  }
-
-  const diffDays = Math.round(diffHours / 24);
-  return `${diffDays} days ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.round(diffHours / 24)}d ago`;
 }
 
 function getSystemHeadline(
   metrics: NonNullable<ReturnType<typeof useAdminMetrics>["metrics"]>,
   isSystemQuiet: boolean,
 ): string {
-  if (isSystemQuiet) {
-    return "System load is currently quiet.";
-  }
-
-  if (metrics.overdueCount > 0) {
-    return "Overdue loans are driving the current attention set.";
-  }
-
-  if (metrics.queuePressure.length > 0) {
-    return "Reader demand is concentrating around a few titles.";
-  }
-
-  if (metrics.activeBorrowCount > 0) {
-    return "Circulation is active without immediate escalation.";
-  }
-
-  return "The dashboard is ready for the next operational review.";
+  if (isSystemQuiet) return "All systems quiet — no immediate attention required.";
+  if (metrics.overdueCount > 0) return "Overdue loans need your attention.";
+  if (metrics.queuePressure.length > 0) return "Reader demand is concentrating.";
+  if (metrics.activeBorrowCount > 0) return "Circulation active — no escalation.";
+  return "Ready for the next operational review.";
 }
 
-function getSystemSummary(
-  metrics: NonNullable<ReturnType<typeof useAdminMetrics>["metrics"]>,
-  isSystemQuiet: boolean,
-): string {
-  if (isSystemQuiet) {
-    return "No active borrows, overdue loans, pending fines, or queue hotspots are currently present. This is a real zero-state.";
-  }
+/* ─────────────────────────── Animated Counter ──────────────────────────── */
 
-  if (metrics.overdueCount > 0) {
-    return "Start with circulation and fines. The overdue set is the fastest path to the records most likely to need intervention.";
-  }
+function AnimatedCounter({
+  value,
+  formatter,
+  className,
+}: {
+  value: number;
+  formatter: (v: number) => string;
+  className?: string;
+}): React.JSX.Element {
+  const [displayValue, setDisplayValue] = React.useState(0);
+  const prevValueRef = React.useRef(0);
 
-  if (metrics.queuePressure.length > 0) {
-    return "Focus on the titles attracting the most waiting readers. Queue pressure is the current operational hotspot.";
-  }
+  React.useEffect(() => {
+    const start = prevValueRef.current;
+    const end = value;
+    prevValueRef.current = value;
 
-  return "Use this overview to move quickly into the owning module for record-level work.";
+    if (start === end) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const duration = 800;
+    const startTime = performance.now();
+
+    function animate(currentTime: number) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + (end - start) * eased);
+      setDisplayValue(current);
+      if (progress < 1) requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return <span className={className}>{formatter(displayValue)}</span>;
 }
+
+/* ────────────────────────── Sparkline Mini-Chart ───────────────────────── */
+
+function MiniSparkline({
+  values,
+  color = "hsl(var(--primary))",
+  className,
+}: {
+  values: number[];
+  color?: string;
+  className?: string;
+}): React.JSX.Element {
+  const width = 80;
+  const height = 28;
+  const padding = 2;
+  const maxVal = Math.max(...values, 1);
+
+  const points = values.map((v, i) => {
+    const x = padding + (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
+    const y = height - padding - (v / maxVal) * (height - padding * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const linePath = `M ${points.join(" L ")}`;
+  const areaPath = `${linePath} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className={cn("h-7 w-20", className)}
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <linearGradient id={`spark-fill-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path
+        d={areaPath}
+        fill={`url(#spark-fill-${color.replace(/[^a-z0-9]/gi, "")})`}
+      />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* ──────────────────────── Primary Metric Card ────────────────────────── */
+
+function PrimaryMetricCard({
+  title,
+  value,
+  formattedValue,
+  summary,
+  icon: Icon,
+  tone,
+  sparkValues,
+  trendLabel,
+}: {
+  title: string;
+  value: number;
+  formattedValue: string;
+  summary: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: "primary" | "warning" | "fine";
+  sparkValues?: number[];
+  trendLabel?: string;
+}): React.JSX.Element {
+  const toneMap = {
+    primary: {
+      border: "border-primary/20 hover:border-primary/35",
+      bg: "bg-gradient-to-br from-primary/8 via-primary/3 to-transparent",
+      icon: "bg-primary/12 text-primary ring-1 ring-primary/20",
+      dot: "bg-primary",
+      sparkColor: "hsl(var(--primary))",
+      badge: "bg-primary/10 text-primary border-primary/20",
+    },
+    warning: {
+      border: "border-danger/20 hover:border-danger/35",
+      bg: "bg-gradient-to-br from-danger/8 via-danger/3 to-transparent",
+      icon: "bg-danger/12 text-danger ring-1 ring-danger/20",
+      dot: "bg-danger",
+      sparkColor: "hsl(var(--danger))",
+      badge: "bg-danger/10 text-danger border-danger/20",
+    },
+    fine: {
+      border: "border-warning/20 hover:border-warning/35",
+      bg: "bg-gradient-to-br from-warning/8 via-warning/3 to-transparent",
+      icon: "bg-warning/12 text-warning ring-1 ring-warning/20",
+      dot: "bg-warning",
+      sparkColor: "hsl(var(--warning))",
+      badge: "bg-warning/10 text-warning border-warning/20",
+    },
+  };
+  const t = toneMap[tone];
+
+  return (
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300",
+        t.border,
+        t.bg,
+      )}
+    >
+      {/* Decorative glow */}
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-500 group-hover:scale-150" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex-1 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", t.icon)}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              {title}
+            </p>
+          </div>
+
+          <div className="flex items-end gap-3">
+            <AnimatedCounter
+              value={value}
+              formatter={() => formattedValue}
+              className="font-display text-3xl font-black tracking-tight text-foreground"
+            />
+            {sparkValues && sparkValues.length > 1 && (
+              <MiniSparkline values={sparkValues} color={t.sparkColor} className="mb-1" />
+            )}
+          </div>
+
+          {trendLabel && (
+            <Badge variant="outline" className={cn("rounded-full text-[10px] font-semibold", t.badge)}>
+              <TrendingUp className="mr-1 h-3 w-3" />
+              {trendLabel}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+        {summary}
+      </p>
+    </div>
+  );
+}
+
+/* ──────────────────── Pulse Indicator ──────────────────────────────── */
+
+function SystemPulse({ isQuiet }: { isQuiet: boolean }): React.JSX.Element {
+  return (
+    <span className="relative flex h-2.5 w-2.5">
+      {!isQuiet && (
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+      )}
+      <span
+        className={cn(
+          "relative inline-flex h-2.5 w-2.5 rounded-full",
+          isQuiet ? "bg-muted-foreground/40" : "bg-emerald-500",
+        )}
+      />
+    </span>
+  );
+}
+
+/* ─────────────────────── Error State ──────────────────────────────── */
 
 function DashboardErrorState(props: {
   hasStaleData: boolean;
@@ -161,114 +357,69 @@ function DashboardErrorState(props: {
   onRetry: () => void | Promise<void>;
 }): React.JSX.Element {
   return (
-    <Card className="rounded-[2rem] border-danger/20 bg-danger/5 py-0 shadow-none">
-      <CardContent className="flex flex-col gap-5 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-danger">
+    <div className="overflow-hidden rounded-2xl border border-danger/20 bg-gradient-to-r from-danger/5 via-danger/3 to-transparent p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/12 text-danger ring-1 ring-danger/20">
             <AlertCircle className="h-5 w-5" />
-            <p className="text-sm font-semibold uppercase tracking-[0.18em]">
-              Retry Required
-            </p>
           </div>
-          <p className="text-lg font-black text-foreground">
-            Unable to load the admin dashboard.
-          </p>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {props.message}
-          </p>
-          {props.hasStaleData ? (
-            <p className="text-sm text-muted-foreground">
-              The current overview may be stale. Refresh to request the latest
-              backend metrics truth.
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-foreground">
+              Unable to load dashboard
             </p>
-          ) : null}
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              {props.message}
+            </p>
+            {props.hasStaleData && (
+              <p className="text-[12px] text-muted-foreground/70">
+                Showing stale data. Refresh for the latest.
+              </p>
+            )}
+          </div>
         </div>
         <Button
           type="button"
           variant="outline"
-          className="gap-2 self-start rounded-xl sm:self-auto"
-          onClick={() => {
-            void props.onRetry();
-          }}
+          size="sm"
+          className="gap-2 self-start rounded-xl border-danger/25 text-danger hover:bg-danger/10 sm:self-auto"
+          onClick={() => { void props.onRetry(); }}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-3.5 w-3.5" />
           Retry
         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OverviewMetricBlock(props: {
-  title: string;
-  value: string;
-  summary: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: "primary" | "warning" | "fine";
-  prominent?: boolean;
-}): React.JSX.Element {
-  const Icon = props.icon;
-  const toneClassName =
-    props.tone === "warning"
-      ? "border-danger/20 bg-danger/5"
-      : props.tone === "fine"
-        ? "border-warning/20 bg-warning/5"
-        : "border-primary/20 bg-primary/5";
-  const iconClassName =
-    props.tone === "warning"
-      ? "bg-danger/10 text-danger"
-      : props.tone === "fine"
-        ? "bg-warning/10 text-warning"
-        : "bg-primary/10 text-primary";
-  const eyebrowClassName =
-    props.tone === "warning"
-      ? "text-danger"
-      : props.tone === "fine"
-        ? "text-warning"
-        : "text-primary";
-
-  return (
-    <div
-      className={cn(
-        "rounded-[1.6rem] border px-4 py-4 shadow-none",
-        toneClassName,
-        props.prominent ? "sm:col-span-2" : "",
-      )}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <p
-            className={cn(
-              "text-[11px] font-semibold uppercase tracking-[0.18em]",
-              eyebrowClassName,
-            )}
-          >
-            {props.title}
-          </p>
-          <p
-            className={cn(
-              "font-display font-black tracking-tight text-foreground",
-              props.prominent ? "text-4xl" : "text-2xl",
-            )}
-          >
-            {props.value}
-          </p>
-        </div>
-        <div
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-2xl",
-            iconClassName,
-          )}
-        >
-          <Icon className="h-4.5 w-4.5" />
-        </div>
       </div>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        {props.summary}
-      </p>
     </div>
   );
 }
+
+/* ──────────────────── Quick Navigation Card ──────────────────────── */
+
+function QuickNavCard({ item }: { item: QuickLinkItem }): React.JSX.Element {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "group relative flex items-center gap-3.5 overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br p-4 transition-all duration-300",
+        "hover:border-primary/25 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5",
+        item.gradient,
+      )}
+    >
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconBg)}>
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">{item.title}</p>
+        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{item.summary}</p>
+      </div>
+      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-all duration-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+    </Link>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ██  MAIN DASHBOARD SCREEN
+   ══════════════════════════════════════════════════════════════════════ */
 
 export function AdminMetricsDashboardScreen(): React.JSX.Element {
   const metricsQuery = useAdminMetrics({
@@ -322,11 +473,22 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
     [metricsQuery.queuePressure],
   );
 
+  /* Derive mini-sparkline data from popular books (gives visual context) */
+  const borrowSparkValues = React.useMemo(
+    () =>
+      metricsQuery.popularBooks.length > 0
+        ? metricsQuery.popularBooks.map((b) => b.borrowCount)
+        : [0, 0],
+    [metricsQuery.popularBooks],
+  );
+
   return (
     <PageContainer>
-      <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-5">
+        {/* Loading state */}
         {metricsQuery.loading ? <DashboardLoadingState /> : null}
 
+        {/* Full error (no data at all) */}
         {!metricsQuery.loading && metricsQuery.error && !metricsQuery.hasData ? (
           <DashboardErrorState
             hasStaleData={metricsQuery.hasStaleData}
@@ -335,8 +497,10 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
           />
         ) : null}
 
+        {/* Main dashboard content */}
         {!metricsQuery.loading && metricsQuery.hasData && metrics ? (
           <>
+            {/* Stale data error banner */}
             {metricsQuery.error ? (
               <DashboardErrorState
                 hasStaleData={metricsQuery.hasStaleData}
@@ -345,167 +509,181 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
               />
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)]">
-              <div className="grid gap-4">
-                <ScrollReveal direction="up" delayMs={40}>
-                  <Card className="overflow-hidden rounded-[2rem] border-primary/15 bg-gradient-to-br from-primary/8 via-card to-card py-0 shadow-none">
-                    <CardContent className="grid gap-6 px-6 py-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0 space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                              Admin Overview
-                            </p>
-                            <h1 className="font-display text-3xl font-black tracking-tight text-foreground">
-                              Dashboard
-                            </h1>
-                            <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                              {getSystemSummary(
-                                metrics,
-                                metricsQuery.isSystemQuiet,
-                              )}
-                            </p>
-                          </div>
+            {/* ───── HERO SECTION ───── */}
+            <ScrollReveal direction="up" delayMs={30}>
+              <div className="relative overflow-hidden rounded-3xl border border-primary/12 bg-gradient-to-br from-primary/8 via-card to-card p-6 sm:p-8">
+                {/* Decorative background blobs */}
+                <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
+                <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
 
-                          <div className="flex shrink-0 items-center gap-3">
-                            <Badge
-                              variant="outline"
-                              className="rounded-full border-primary/20 bg-primary/10 text-primary"
-                            >
-                              Admin Only
-                            </Badge>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="gap-2 rounded-xl"
-                              disabled={
-                                metricsQuery.loading || metricsQuery.refreshing
-                              }
-                              onClick={() => {
-                                void metricsQuery.refresh();
-                              }}
-                            >
-                              {metricsQuery.loading || metricsQuery.refreshing ? (
-                                <LoaderCircle className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-4 w-4" />
-                              )}
-                              Refresh
-                            </Button>
-                          </div>
+                <div className="relative grid gap-6 xl:grid-cols-[1fr_auto]">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Badge className="rounded-full bg-primary/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary shadow-none hover:bg-primary/12">
+                        <Zap className="mr-1.5 h-3 w-3" />
+                        Admin Command Center
+                      </Badge>
+                      <Badge variant="outline" className="rounded-full border-border/60 text-[11px]">
+                        Admin Only
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h1 className="font-display text-3xl font-black tracking-tight text-foreground sm:text-4xl">
+                        Dashboard
+                      </h1>
+                      <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                        {getSystemHeadline(metrics, metricsQuery.isSystemQuiet)}
+                      </p>
+                    </div>
+
+                    {/* System Status Bar */}
+                    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border/40 bg-background/60 px-4 py-3 backdrop-blur-sm">
+                      <div className="flex items-center gap-2">
+                        <SystemPulse isQuiet={metricsQuery.isSystemQuiet} />
+                        <span className="text-[13px] font-medium text-foreground">
+                          {metricsQuery.isSystemQuiet ? "System Quiet" : "System Active"}
+                        </span>
+                      </div>
+                      <div className="h-4 w-px bg-border/60" />
+                      <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        {formatRelativeTime(metricsQuery.lastLoadedAt)}
+                      </div>
+                      <div className="h-4 w-px bg-border/60" />
+                      <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                        <Activity className="h-3.5 w-3.5" />
+                        <span>
+                          {metricsQuery.isSystemQuiet
+                            ? "No hotspots"
+                            : `${metrics.activeBorrowCount} active`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Refresh Button */}
+                  <div className="flex items-start">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+                      disabled={metricsQuery.loading || metricsQuery.refreshing}
+                      onClick={() => { void metricsQuery.refresh(); }}
+                    >
+                      {metricsQuery.loading || metricsQuery.refreshing ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* ───── METRICS CARDS ROW ───── */}
+            <ScrollReveal direction="up" delayMs={80}>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <PrimaryMetricCard
+                  title="Active Borrows"
+                  value={metrics.activeBorrowCount}
+                  formattedValue={formatCount(metrics.activeBorrowCount)}
+                  summary={
+                    metrics.activeBorrowCount > 0
+                      ? "Current circulation load still out with borrowers."
+                      : "No live borrow workload is open right now."
+                  }
+                  icon={LibraryBig}
+                  tone="primary"
+                  sparkValues={borrowSparkValues}
+                  trendLabel={metrics.activeBorrowCount > 0 ? "Live" : undefined}
+                />
+                <PrimaryMetricCard
+                  title="Overdue Loans"
+                  value={metrics.overdueCount}
+                  formattedValue={formatCount(metrics.overdueCount)}
+                  summary={
+                    metrics.overdueCount > 0
+                      ? "Inspect circulation to check borrower & return state."
+                      : "No overdue loans currently need intervention."
+                  }
+                  icon={ShieldAlert}
+                  tone="warning"
+                  trendLabel={metrics.overdueCount > 0 ? "Needs Attention" : undefined}
+                />
+                <PrimaryMetricCard
+                  title="Pending Fines"
+                  value={metrics.totalPendingFines}
+                  formattedValue={formatMoney(metrics.totalPendingFines)}
+                  summary={
+                    metrics.totalPendingFines > 0
+                      ? "Unsettled balance is still open across the system."
+                      : "No pending fine balance is currently outstanding."
+                  }
+                  icon={CreditCard}
+                  tone="fine"
+                  trendLabel={metrics.totalPendingFines > 0 ? "Outstanding" : undefined}
+                />
+              </div>
+            </ScrollReveal>
+
+            {/* ───── MAIN CONTENT GRID ───── */}
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.85fr)]">
+              {/* LEFT COLUMN */}
+              <div className="grid gap-5">
+                {/* Activity Contour */}
+                <ScrollReveal direction="up" delayMs={120}>
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5">
+                    <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+                            Catalog Momentum
+                          </p>
+                          <CardTitle className="text-xl font-black tracking-tight">
+                            Activity contour
+                          </CardTitle>
                         </div>
-
-                        <div className="rounded-[1.6rem] border border-border/60 bg-background/55 px-4 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className="rounded-full border-primary/20 bg-primary/10 text-primary"
-                            >
-                              System Status
-                            </Badge>
-                            <p className="text-sm font-semibold text-foreground">
-                              {getSystemHeadline(
-                                metrics,
-                                metricsQuery.isSystemQuiet,
-                              )}
-                            </p>
-                          </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              <Clock3 className="h-4 w-4 text-primary" />
-                              <span>
-                                Refreshed {formatRelativeTime(metricsQuery.lastLoadedAt)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Activity className="h-4 w-4 text-primary" />
-                              <span>
-                                {metricsQuery.isSystemQuiet
-                                  ? "No immediate operational hotspots."
-                                  : "Use the highlighted surfaces to choose the next workspace."}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <OverviewMetricBlock
-                            title="Active Borrows"
-                            value={formatCount(metrics.activeBorrowCount)}
-                            summary={
-                              metrics.activeBorrowCount > 0
-                                ? "Current circulation load still out with borrowers."
-                                : "No live borrow workload is open right now."
-                            }
-                            icon={LibraryBig}
-                            tone="primary"
-                            prominent
-                          />
-                          <OverviewMetricBlock
-                            title="Overdue Loans"
-                            value={formatCount(metrics.overdueCount)}
-                            summary={
-                              metrics.overdueCount > 0
-                                ? "Open circulation to inspect borrower and return state."
-                                : "No overdue loans currently need intervention."
-                            }
-                            icon={ShieldAlert}
-                            tone="warning"
-                          />
-                          <OverviewMetricBlock
-                            title="Pending Fines"
-                            value={formatMoney(metrics.totalPendingFines)}
-                            summary={
-                              metrics.totalPendingFines > 0
-                                ? "Unsettled balance is still open across the system."
-                                : "No pending fine balance is currently outstanding."
-                            }
-                            icon={CreditCard}
-                            tone="fine"
-                          />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <TrendingUp className="h-4 w-4" />
                         </div>
                       </div>
-
-                      <div className="rounded-[1.8rem] border border-border/60 bg-background/55 px-4 py-4">
-                        <div className="mb-4 space-y-2">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                            Ranked Activity Contour
-                          </p>
-                          <h2 className="text-lg font-black tracking-tight text-foreground">
-                            Current catalog momentum
-                          </h2>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            This graph-like contour shows the current shape of
-                            borrow activity across the top-ranked titles. It
-                            reflects ranked volume, not time-series trend data.
-                          </p>
-                        </div>
-
-                        <DashboardActivityContour
-                          items={popularChartItems}
-                          emptyTitle="No popular-book contour yet"
-                          emptyMessage="Borrow activity has not yet produced a ranked contour of popular titles."
-                          valueFormatter={(value) =>
-                            `${formatCount(value)} borrows`
-                          }
-                        />
-                      </div>
+                      <CardDescription className="px-0 text-[13px] leading-relaxed">
+                        Ranked borrow volume across the most active titles. Shape reflects momentum, not time-series.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-6 py-6">
+                      <DashboardActivityContour
+                        items={popularChartItems}
+                        emptyTitle="No activity contour yet"
+                        emptyMessage="Borrow activity has not yet produced a ranked contour of popular titles."
+                        valueFormatter={(value) => `${formatCount(value)} borrows`}
+                      />
                     </CardContent>
                   </Card>
                 </ScrollReveal>
 
-                <ScrollReveal direction="up" delayMs={90}>
-                  <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
-                    <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                        Catalog Activity
-                      </p>
-                      <CardTitle className="text-2xl font-black tracking-tight">
-                        Most borrowed books
-                      </CardTitle>
-                      <CardDescription className="px-0 text-sm leading-6">
-                        Use this bar chart to spot titles currently attracting
-                        the most borrowing volume.
+                {/* Most Borrowed Books Bar Chart */}
+                <ScrollReveal direction="up" delayMs={160}>
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5">
+                    <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+                            Catalog Activity
+                          </p>
+                          <CardTitle className="text-xl font-black tracking-tight">
+                            Most borrowed books
+                          </CardTitle>
+                        </div>
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <BookCopy className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <CardDescription className="px-0 text-[13px] leading-relaxed">
+                        Titles attracting the most borrowing volume right now.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 py-6">
@@ -513,66 +691,81 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={popularChartItems}
                         emptyTitle="No popular-book data yet"
                         emptyMessage="Borrow activity has not produced any ranked popular-book data yet."
-                        valueFormatter={(value) =>
-                          `${formatCount(value)} borrows`
-                        }
+                        valueFormatter={(value) => `${formatCount(value)} borrows`}
                       />
                     </CardContent>
                   </Card>
                 </ScrollReveal>
               </div>
 
-              <div className="grid gap-4">
-                <ScrollReveal direction="up" delayMs={60}>
-                  <Card className="rounded-[2rem] border-danger/15 bg-card/95 py-0 shadow-none">
-                    <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-danger">
-                        Operational Attention
-                      </p>
-                      <CardTitle className="text-2xl font-black tracking-tight">
-                        Current pressure map
-                      </CardTitle>
-                      <CardDescription className="px-0 text-sm leading-6">
-                        This block highlights where queue demand and overdue
-                        pressure are clustering right now.
+              {/* RIGHT COLUMN */}
+              <div className="grid gap-5">
+                {/* Pressure Map */}
+                <ScrollReveal direction="up" delayMs={100}>
+                  <Card className="overflow-hidden rounded-2xl border-danger/12 bg-card/95 py-0 shadow-sm shadow-danger/5">
+                    <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-danger">
+                            Operational Attention
+                          </p>
+                          <CardTitle className="text-xl font-black tracking-tight">
+                            Pressure map
+                          </CardTitle>
+                        </div>
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/10 text-danger">
+                          <AlertCircle className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <CardDescription className="px-0 text-[13px] leading-relaxed">
+                        Queue demand and overdue pressure clustering.
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="grid gap-5 px-6 py-6">
+                    <CardContent className="grid gap-4 px-6 py-6">
                       <DashboardDonutChart
                         items={queueChartItems}
                         totalLabel="Waiting readers"
                         totalValue={formatCount(totalWaitingReaders)}
                         emptyLabel="No queue pressure currently"
-                        valueFormatter={(value) =>
-                          `${formatCount(value)} waiting`
-                        }
+                        valueFormatter={(value) => `${formatCount(value)} waiting`}
                       />
 
+                      {/* Secondary pressure metrics */}
                       <div className="grid gap-3">
-                        <div className="rounded-[1.6rem] border border-danger/20 bg-danger/5 px-4 py-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-danger">
-                            Overdue pressure
-                          </p>
-                          <p className="mt-2 text-3xl font-black tracking-tight text-foreground">
+                        <div className="rounded-xl border border-danger/15 bg-gradient-to-r from-danger/5 to-transparent p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger/12 text-danger">
+                              <ShieldAlert className="h-3.5 w-3.5" />
+                            </div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-danger">
+                              Overdue pressure
+                            </p>
+                          </div>
+                          <p className="mt-2 font-display text-2xl font-black tracking-tight text-foreground">
                             {formatCount(metrics.overdueCount)}
                           </p>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                             {metrics.overdueCount > 0
-                              ? "Open circulation first. The overdue set is the strongest immediate workload."
-                              : "No overdue records currently need intervention."}
+                              ? "Open circulation first — the overdue set is the strongest immediate workload."
+                              : "No overdue records need intervention."}
                           </p>
                         </div>
 
-                        <div className="rounded-[1.6rem] border border-warning/20 bg-warning/5 px-4 py-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-warning">
-                            Queue hotspot
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-foreground">
+                        <div className="rounded-xl border border-warning/15 bg-gradient-to-r from-warning/5 to-transparent p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/12 text-warning">
+                              <Activity className="h-3.5 w-3.5" />
+                            </div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-warning">
+                              Queue hotspot
+                            </p>
+                          </div>
+                          <p className="mt-2 text-sm font-bold text-foreground">
                             {metricsQuery.topQueuedBook?.title ?? "No queue hotspot"}
                           </p>
-                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                             {metricsQuery.topQueuedBook
-                              ? `${formatCount(metricsQuery.topQueuedBook.waitingCount)} readers are currently waiting on the highest-pressure title.`
+                              ? `${formatCount(metricsQuery.topQueuedBook.waitingCount)} readers waiting on the highest-pressure title.`
                               : "No titles currently have a waiting queue."}
                           </p>
                         </div>
@@ -581,18 +774,25 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   </Card>
                 </ScrollReveal>
 
-                <ScrollReveal direction="up" delayMs={110}>
-                  <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
-                    <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                        Queue Pressure
-                      </p>
-                      <CardTitle className="text-2xl font-black tracking-tight">
-                        Highest-demand titles
-                      </CardTitle>
-                      <CardDescription className="px-0 text-sm leading-6">
-                        Ranked queue load shown as a bar chart for direct
-                        comparison of current demand hotspots.
+                {/* Queue Pressure Bar Chart */}
+                <ScrollReveal direction="up" delayMs={180}>
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5">
+                    <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+                            Queue Pressure
+                          </p>
+                          <CardTitle className="text-xl font-black tracking-tight">
+                            Highest demand
+                          </CardTitle>
+                        </div>
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Users className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <CardDescription className="px-0 text-[13px] leading-relaxed">
+                        Direct comparison of current demand hotspots.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 py-6">
@@ -600,35 +800,37 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={queueChartItems}
                         emptyTitle="No queue pressure currently"
                         emptyMessage="There are currently no books with readers waiting in the queue."
-                        valueFormatter={(value) =>
-                          `${formatCount(value)} waiting`
-                        }
+                        valueFormatter={(value) => `${formatCount(value)} waiting`}
                       />
-                    </CardContent>
-                  </Card>
-                </ScrollReveal>
-
-                <ScrollReveal direction="up" delayMs={150}>
-                  <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
-                    <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                        Quick Navigation
-                      </p>
-                      <CardTitle className="text-2xl font-black tracking-tight">
-                        Go to the owning workspace
-                      </CardTitle>
-                      <CardDescription className="px-0 text-sm leading-6">
-                        The dashboard stays read-only. Jump to the module that
-                        owns the next operational step.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="px-6 py-6">
-                      <DashboardQuickLinks items={QUICK_LINKS} />
                     </CardContent>
                   </Card>
                 </ScrollReveal>
               </div>
             </div>
+
+            {/* ───── QUICK NAVIGATION ───── */}
+            <ScrollReveal direction="up" delayMs={200}>
+              <div className="space-y-4">
+                <div className="space-y-1 px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
+                    <h2 className="text-lg font-black tracking-tight text-foreground">
+                      Quick Navigation
+                    </h2>
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">
+                    Jump to the workspace that owns the next operational step.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {QUICK_LINKS.map((item) => (
+                    <QuickNavCard key={item.href} item={item} />
+                  ))}
+                </div>
+              </div>
+            </ScrollReveal>
           </>
         ) : null}
       </div>
