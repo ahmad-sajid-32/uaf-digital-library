@@ -18,7 +18,7 @@ export function DashboardLoadingState(): React.JSX.Element {
       </div>
 
       {/* Main content grid */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.85fr)]">
+      <div className="grid gap-5 ">
         <div className="grid gap-5">
           <Skeleton className="h-[22rem] rounded-2xl" />
           <Skeleton className="h-[20rem] rounded-2xl" />

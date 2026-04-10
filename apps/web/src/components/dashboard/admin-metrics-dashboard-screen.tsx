@@ -131,10 +131,13 @@ function getSystemHeadline(
   metrics: NonNullable<ReturnType<typeof useAdminMetrics>["metrics"]>,
   isSystemQuiet: boolean,
 ): string {
-  if (isSystemQuiet) return "All systems quiet — no immediate attention required.";
+  if (isSystemQuiet)
+    return "All systems quiet — no immediate attention required.";
   if (metrics.overdueCount > 0) return "Overdue loans need your attention.";
-  if (metrics.queuePressure.length > 0) return "Reader demand is concentrating.";
-  if (metrics.activeBorrowCount > 0) return "Circulation active — no escalation.";
+  if (metrics.queuePressure.length > 0)
+    return "Reader demand is concentrating.";
+  if (metrics.activeBorrowCount > 0)
+    return "Circulation active — no escalation.";
   return "Ready for the next operational review.";
 }
 
@@ -197,7 +200,8 @@ function MiniSparkline({
   const maxVal = Math.max(...values, 1);
 
   const points = values.map((v, i) => {
-    const x = padding + (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
+    const x =
+      padding + (i / Math.max(values.length - 1, 1)) * (width - padding * 2);
     const y = height - padding - (v / maxVal) * (height - padding * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
@@ -212,7 +216,13 @@ function MiniSparkline({
       preserveAspectRatio="none"
     >
       <defs>
-        <linearGradient id={`spark-fill-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" x2="0" y1="0" y2="1">
+        <linearGradient
+          id={`spark-fill-${color.replace(/[^a-z0-9]/gi, "")}`}
+          x1="0"
+          x2="0"
+          y1="0"
+          y2="1"
+        >
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0.02" />
         </linearGradient>
@@ -296,7 +306,12 @@ function PrimaryMetricCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-2">
-            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", t.icon)}>
+            <div
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl",
+                t.icon,
+              )}
+            >
               <Icon className="h-4 w-4" />
             </div>
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
@@ -311,12 +326,19 @@ function PrimaryMetricCard({
               className="font-display text-3xl font-black tracking-tight text-foreground"
             />
             {sparkValues && sparkValues.length > 1 && (
-              <MiniSparkline values={sparkValues} color={t.sparkColor} className="mb-1" />
+              <MiniSparkline
+                values={sparkValues}
+                color={t.sparkColor}
+                className="mb-1"
+              />
             )}
           </div>
 
           {trendLabel && (
-            <Badge variant="outline" className={cn("rounded-full text-[10px] font-semibold", t.badge)}>
+            <Badge
+              variant="outline"
+              className={cn("rounded-full text-[10px] font-semibold", t.badge)}
+            >
               <TrendingUp className="mr-1 h-3 w-3" />
               {trendLabel}
             </Badge>
@@ -382,7 +404,9 @@ function DashboardErrorState(props: {
           variant="outline"
           size="sm"
           className="gap-2 self-start rounded-xl border-danger/25 text-danger hover:bg-danger/10 sm:self-auto"
-          onClick={() => { void props.onRetry(); }}
+          onClick={() => {
+            void props.onRetry();
+          }}
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Retry
@@ -405,12 +429,19 @@ function QuickNavCard({ item }: { item: QuickLinkItem }): React.JSX.Element {
         item.gradient,
       )}
     >
-      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconBg)}>
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110",
+          item.iconBg,
+        )}
+      >
         <Icon className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{item.title}</p>
-        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{item.summary}</p>
+        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {item.summary}
+        </p>
       </div>
       <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-all duration-300 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
     </Link>
@@ -437,12 +468,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
         label: item.title,
         value: item.borrowCount,
         caption: `Rank ${index + 1}`,
-        tone:
-          index === 0
-            ? "primary"
-            : index === 1
-              ? "accent"
-              : "muted",
+        tone: index === 0 ? "primary" : index === 1 ? "accent" : "muted",
       })),
     [metricsQuery.popularBooks],
   );
@@ -454,12 +480,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
         label: item.title,
         value: item.waitingCount,
         caption: `Rank ${index + 1}`,
-        tone:
-          index === 0
-            ? "danger"
-            : index === 1
-              ? "warning"
-              : "primary",
+        tone: index === 0 ? "danger" : index === 1 ? "warning" : "primary",
       })),
     [metricsQuery.queuePressure],
   );
@@ -489,7 +510,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
         {metricsQuery.loading ? <DashboardLoadingState /> : null}
 
         {/* Full error (no data at all) */}
-        {!metricsQuery.loading && metricsQuery.error && !metricsQuery.hasData ? (
+        {!metricsQuery.loading &&
+        metricsQuery.error &&
+        !metricsQuery.hasData ? (
           <DashboardErrorState
             hasStaleData={metricsQuery.hasStaleData}
             message={metricsQuery.error}
@@ -511,38 +534,60 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
 
             {/* ───── HERO SECTION ───── */}
             <ScrollReveal direction="up" delayMs={30}>
-              <div className="relative overflow-hidden rounded-3xl border border-primary/12 bg-gradient-to-br from-primary/8 via-card to-card p-6 sm:p-8">
+              <div className="relative overflow-hidden py-2">
                 {/* Decorative background blobs */}
-                <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-primary/8 blur-3xl" />
-                <div className="pointer-events-none absolute -left-16 bottom-0 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
-
-                <div className="relative grid gap-6 xl:grid-cols-[1fr_auto]">
+                <div className="relative grid gap-6">
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Badge className="rounded-full bg-primary/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary shadow-none hover:bg-primary/12">
-                        <Zap className="mr-1.5 h-3 w-3" />
-                        Admin Command Center
-                      </Badge>
-                      <Badge variant="outline" className="rounded-full border-border/60 text-[11px]">
-                        Admin Only
-                      </Badge>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Badge className="rounded-full bg-primary/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary shadow-none hover:bg-primary/12">
+                            <Zap className="mr-1.5 h-3 w-3" />
+                            Admin Command Center
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <h1 className="font-display text-3xl font-black tracking-tight text-foreground sm:text-4xl">
+                            Dashboard
+                          </h1>
+                          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                            {getSystemHeadline(
+                              metrics,
+                              metricsQuery.isSystemQuiet,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      {/* Refresh Button */}
+                      <div className="flex items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2 rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+                          disabled={
+                            metricsQuery.loading || metricsQuery.refreshing
+                          }
+                          onClick={() => {
+                            void metricsQuery.refresh();
+                          }}
+                        >
+                          {metricsQuery.loading || metricsQuery.refreshing ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Refresh
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <h1 className="font-display text-3xl font-black tracking-tight text-foreground sm:text-4xl">
-                        Dashboard
-                      </h1>
-                      <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                        {getSystemHeadline(metrics, metricsQuery.isSystemQuiet)}
-                      </p>
-                    </div>
-
                     {/* System Status Bar */}
-                    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border/40 bg-background/60 px-4 py-3 backdrop-blur-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/40 bg-background/60 px-4 py-3 backdrop-blur-sm">
                       <div className="flex items-center gap-2">
                         <SystemPulse isQuiet={metricsQuery.isSystemQuiet} />
                         <span className="text-[13px] font-medium text-foreground">
-                          {metricsQuery.isSystemQuiet ? "System Quiet" : "System Active"}
+                          {metricsQuery.isSystemQuiet
+                            ? "System Quiet"
+                            : "System Active"}
                         </span>
                       </div>
                       <div className="h-4 w-px bg-border/60" />
@@ -560,24 +605,6 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         </span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Refresh Button */}
-                  <div className="flex items-start">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gap-2 rounded-xl border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
-                      disabled={metricsQuery.loading || metricsQuery.refreshing}
-                      onClick={() => { void metricsQuery.refresh(); }}
-                    >
-                      {metricsQuery.loading || metricsQuery.refreshing ? (
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                      Refresh
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -598,7 +625,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   icon={LibraryBig}
                   tone="primary"
                   sparkValues={borrowSparkValues}
-                  trendLabel={metrics.activeBorrowCount > 0 ? "Live" : undefined}
+                  trendLabel={
+                    metrics.activeBorrowCount > 0 ? "Live" : undefined
+                  }
                 />
                 <PrimaryMetricCard
                   title="Overdue Loans"
@@ -611,7 +640,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   }
                   icon={ShieldAlert}
                   tone="warning"
-                  trendLabel={metrics.overdueCount > 0 ? "Needs Attention" : undefined}
+                  trendLabel={
+                    metrics.overdueCount > 0 ? "Needs Attention" : undefined
+                  }
                 />
                 <PrimaryMetricCard
                   title="Pending Fines"
@@ -624,13 +655,15 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   }
                   icon={CreditCard}
                   tone="fine"
-                  trendLabel={metrics.totalPendingFines > 0 ? "Outstanding" : undefined}
+                  trendLabel={
+                    metrics.totalPendingFines > 0 ? "Outstanding" : undefined
+                  }
                 />
               </div>
             </ScrollReveal>
 
             {/* ───── MAIN CONTENT GRID ───── */}
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.85fr)]">
+            <div className="grid gap-5 ">
               {/* LEFT COLUMN */}
               <div className="grid gap-5">
                 {/* Activity Contour */}
@@ -651,7 +684,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         </div>
                       </div>
                       <CardDescription className="px-0 text-[13px] leading-relaxed">
-                        Ranked borrow volume across the most active titles. Shape reflects momentum, not time-series.
+                        Ranked borrow volume across the most active titles.
+                        Shape reflects momentum, not time-series.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 py-6">
@@ -659,7 +693,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={popularChartItems}
                         emptyTitle="No activity contour yet"
                         emptyMessage="Borrow activity has not yet produced a ranked contour of popular titles."
-                        valueFormatter={(value) => `${formatCount(value)} borrows`}
+                        valueFormatter={(value) =>
+                          `${formatCount(value)} borrows`
+                        }
                       />
                     </CardContent>
                   </Card>
@@ -691,7 +727,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={popularChartItems}
                         emptyTitle="No popular-book data yet"
                         emptyMessage="Borrow activity has not produced any ranked popular-book data yet."
-                        valueFormatter={(value) => `${formatCount(value)} borrows`}
+                        valueFormatter={(value) =>
+                          `${formatCount(value)} borrows`
+                        }
                       />
                     </CardContent>
                   </Card>
@@ -727,7 +765,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         totalLabel="Waiting readers"
                         totalValue={formatCount(totalWaitingReaders)}
                         emptyLabel="No queue pressure currently"
-                        valueFormatter={(value) => `${formatCount(value)} waiting`}
+                        valueFormatter={(value) =>
+                          `${formatCount(value)} waiting`
+                        }
                       />
 
                       {/* Secondary pressure metrics */}
@@ -761,7 +801,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                             </p>
                           </div>
                           <p className="mt-2 text-sm font-bold text-foreground">
-                            {metricsQuery.topQueuedBook?.title ?? "No queue hotspot"}
+                            {metricsQuery.topQueuedBook?.title ??
+                              "No queue hotspot"}
                           </p>
                           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                             {metricsQuery.topQueuedBook
@@ -800,7 +841,9 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={queueChartItems}
                         emptyTitle="No queue pressure currently"
                         emptyMessage="There are currently no books with readers waiting in the queue."
-                        valueFormatter={(value) => `${formatCount(value)} waiting`}
+                        valueFormatter={(value) =>
+                          `${formatCount(value)} waiting`
+                        }
                       />
                     </CardContent>
                   </Card>
@@ -810,7 +853,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
 
             {/* ───── QUICK NAVIGATION ───── */}
             <ScrollReveal direction="up" delayMs={200}>
-              <div className="space-y-4">
+              <div className="space-y-4 pb-3">
                 <div className="space-y-1 px-1">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
