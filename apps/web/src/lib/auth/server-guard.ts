@@ -31,7 +31,7 @@ export interface ServerAuthResolution {
 export function getRoleDashboardPath(role: AppRole): string {
   switch (role) {
     case "student":
-      return "/student/dashboard";
+      return "/student/catalog";
     case "librarian":
       return "/librarian/dashboard";
     case "admin":

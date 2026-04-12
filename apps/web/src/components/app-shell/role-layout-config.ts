@@ -136,11 +136,20 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
   ],
   student: [
     {
+      id: "catalog",
+      label: "Catalog",
+      href: "/student/catalog",
+      icon: "library-big",
+      match: "startsWith",
+    },
+    {
       id: "dashboard",
       label: "Dashboard",
       href: "/student/dashboard",
       icon: "layout-dashboard",
       match: "exact",
+      disabled: true,
+      badge: "Later",
     },
     {
       id: "borrows",

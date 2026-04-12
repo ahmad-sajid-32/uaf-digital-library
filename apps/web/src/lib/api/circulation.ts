@@ -14,6 +14,10 @@ import "client-only";
 
 import { SessionExpiredError } from "@/lib/auth/session-errors";
 import {
+  SharedBookQueueApiError,
+  getAuthenticatedBookQueueStatus,
+} from "@/lib/api/book-queue";
+import {
   type AdjustLoanDueDatePayload,
   type CirculationBookQueueStatusItem,
   type CirculationBookStatus,
@@ -101,7 +105,7 @@ async function getAccessToken(): Promise<string> {
 
 async function parseJsonResponse(
   response: Response,
-): Promise<BackendErrorEnvelope | null> {
+): Promise<unknown | null> {
   const contentType = response.headers.get("content-type") ?? "";
 
   if (!contentType.includes("application/json")) {
@@ -109,10 +113,20 @@ async function parseJsonResponse(
   }
 
   try {
-    return (await response.json()) as BackendErrorEnvelope;
+    return await response.json();
   } catch {
     return null;
   }
+}
+
+function getEnvelopeMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const message = (payload as { message?: unknown }).message;
+
+  return typeof message === "string" && message.trim() ? message : null;
 }
 
 async function circulationApiRequest<TData>(
@@ -143,7 +157,7 @@ async function circulationApiRequest<TData>(
 
   if (!response.ok) {
     const message =
-      payload?.message ||
+      getEnvelopeMessage(payload) ||
       `Request failed with status ${response.status}. Please try again.`;
 
     if (response.status === 401) {
@@ -296,11 +310,13 @@ export async function getCirculationBookQueueStatus(
   bookId: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<BackendSuccessEnvelope<{ queue: CirculationBookQueueStatusItem }>> {
-  return circulationApiRequest<{ queue: CirculationBookQueueStatusItem }>(
-    `/api/books/${bookId}/queue`,
-    {
-      method: "GET",
-      signal: options.signal,
-    },
-  );
+  try {
+    return await getAuthenticatedBookQueueStatus(bookId, options);
+  } catch (error: unknown) {
+    if (error instanceof SharedBookQueueApiError) {
+      throw new CirculationApiError(error.status, error.message);
+    }
+
+    throw error;
+  }
 }

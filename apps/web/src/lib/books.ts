@@ -69,6 +69,27 @@ export function getBookStatusLabel(value: BookStatus): string {
   return BOOK_STATUS_LABELS[value];
 }
 
+export interface PublicCatalogBookListItem {
+  id: string;
+  title: string;
+  author: string;
+  category: BookCategory;
+  status: BookStatus;
+  created_at: string;
+}
+
+export interface PublicBookDetailItem {
+  id: string;
+  title: string;
+  author: string;
+  category: BookCategory;
+  status: BookStatus;
+  replacement_cost: number | string;
+  fine_per_day_rate: number | string;
+  override_borrow_duration_days: number | null;
+  created_at: string;
+}
+
 export interface StaffBookListItem {
   id: string;
   title: string;
@@ -81,7 +102,17 @@ export interface StaffBookListItem {
   created_at: string;
 }
 
-export type StaffBookDetailItem = StaffBookListItem;
+export interface PublicBooksListData {
+  items: PublicCatalogBookListItem[];
+  next_cursor_created_at: string | null;
+  next_cursor_id: string | null;
+}
+
+export interface PublicBookDetailData {
+  book: PublicBookDetailItem;
+}
+
+export type StaffBookDetailItem = PublicBookDetailItem;
 
 export interface BookQueueStatusItem {
   book_id: string;

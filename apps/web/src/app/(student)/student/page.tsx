@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function StudentRootPage(): never {
-  redirect("/student/dashboard");
+  redirect("/student/catalog");
 }

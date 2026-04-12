@@ -20,8 +20,12 @@ import "client-only";
  */
 
 import { SessionExpiredError } from "@/lib/auth/session-errors";
+import {
+  SharedBookQueueApiError,
+  type SharedBookQueueStatusResponse,
+  getAuthenticatedBookQueueStatus,
+} from "@/lib/api/book-queue";
 import type {
-  BookQueueStatusData,
   CreateBookPayload,
   StaffBookDetailData,
   StaffBookListItem,
@@ -61,8 +65,7 @@ export function isBooksApiError(error: unknown): error is BooksApiError {
 export type StaffBooksListResponse = BackendSuccessEnvelope<StaffBooksListData>;
 export type StaffBookDetailResponse =
   BackendSuccessEnvelope<StaffBookDetailData>;
-export type BookQueueStatusResponse =
-  BackendSuccessEnvelope<BookQueueStatusData>;
+export type BookQueueStatusResponse = SharedBookQueueStatusResponse;
 export type EmptySuccessResponse = BackendSuccessEnvelope<Record<string, never>>;
 
 export interface GetStaffBooksOptions {
@@ -106,7 +109,7 @@ async function getAccessToken(): Promise<string> {
 
 async function parseJsonResponse(
   response: Response,
-): Promise<BackendErrorEnvelope | null> {
+): Promise<unknown | null> {
   const contentType = response.headers.get("content-type") ?? "";
 
   if (!contentType.includes("application/json")) {
@@ -114,10 +117,20 @@ async function parseJsonResponse(
   }
 
   try {
-    return (await response.json()) as BackendErrorEnvelope;
+    return await response.json();
   } catch {
     return null;
   }
+}
+
+function getEnvelopeMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const message = (payload as { message?: unknown }).message;
+
+  return typeof message === "string" && message.trim() ? message : null;
 }
 
 async function booksApiRequest<TData>(
@@ -148,7 +161,7 @@ async function booksApiRequest<TData>(
 
   if (!response.ok) {
     const message =
-      payload?.message ||
+      getEnvelopeMessage(payload) ||
       `Request failed with status ${response.status}. Please try again.`;
 
     if (response.status === 401) {
@@ -236,10 +249,15 @@ export async function getBookQueueStatus(
   bookId: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<BookQueueStatusResponse> {
-  return booksApiRequest<BookQueueStatusData>(`/api/books/${bookId}/queue`, {
-    method: "GET",
-    signal: options.signal,
-  });
+  try {
+    return await getAuthenticatedBookQueueStatus(bookId, options);
+  } catch (error: unknown) {
+    if (error instanceof SharedBookQueueApiError) {
+      throw new BooksApiError(error.status, error.message);
+    }
+
+    throw error;
+  }
 }
 
 export async function createBook(

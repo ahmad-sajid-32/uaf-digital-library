@@ -49,6 +49,7 @@ from modules.me.routes import router as me_router
 from modules.fines.routes import router as fines_router
 from modules.admin_fines.routes import router as admin_fines_router
 from modules.admin_metrics.routes import router as admin_metrics_router
+from modules.librarian_metrics.routes import router as librarian_metrics_router
 from modules.results.routes import (
     public_router as public_results_router,
     router as results_router,
@@ -145,6 +146,7 @@ app.include_router(me_router)
 app.include_router(fines_router)
 app.include_router(admin_fines_router)
 app.include_router(admin_metrics_router)
+app.include_router(librarian_metrics_router)
 app.include_router(results_router)
 app.include_router(public_results_router)
 app.include_router(documents_router)
