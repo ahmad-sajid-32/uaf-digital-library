@@ -39,6 +39,7 @@ export type AppShellIconName =
   | "users"
   | "bar-chart-3"
   | "bot-message-square"
+  | "graduation-cap"
   | "scroll-text"
   | "book-copy"
   | "library-big"
@@ -127,10 +128,10 @@ export function toAppShellUserSummary(
   auth: AppAuthState,
 ): AppShellUserSummary | null {
   if (
-    auth.status !== "authenticated"
-    || !auth.userId
-    || !auth.email
-    || !auth.role
+    auth.status !== "authenticated" ||
+    !auth.userId ||
+    !auth.email ||
+    !auth.role
   ) {
     return null;
   }

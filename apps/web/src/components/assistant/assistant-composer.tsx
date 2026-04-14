@@ -23,6 +23,7 @@ export function AssistantComposer({
   isDraftConversation,
   submitPending,
   canSubmitQuery,
+  minQueryLength,
   onComposerQueryChange,
   onSubmit,
 }: {
@@ -30,9 +31,13 @@ export function AssistantComposer({
   isDraftConversation: boolean;
   submitPending: boolean;
   canSubmitQuery: boolean;
+  minQueryLength: number;
   onComposerQueryChange: (nextValue: string) => void;
   onSubmit: (event?: React.FormEvent<HTMLFormElement>) => void;
 }): React.JSX.Element {
+  const trimmedLength = composerQuery.replace(/\s+/g, " ").trim().length;
+  const showLengthHint = trimmedLength > 0 && trimmedLength < minQueryLength;
+
   return (
     <div className="shrink-0 border-t border-border/50 px-3 py-3 sm:px-5 sm:py-4">
       <div className="w-full">
@@ -78,7 +83,9 @@ export function AssistantComposer({
           </div>
 
           <p className="px-1 text-xs leading-5 text-muted-foreground">
-            Press Enter to send. Use Shift+Enter for a new line.
+            {showLengthHint
+              ? `Enter at least ${minQueryLength} characters to send.`
+              : "Press Enter to send. Use Shift+Enter for a new line."}
           </p>
         </form>
       </div>

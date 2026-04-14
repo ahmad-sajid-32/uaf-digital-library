@@ -4,8 +4,8 @@
  *
  * Purpose:
  * - Render the selected-book public detail surface separately from the catalog
- *   list so later student borrow and queue workflows have one clear ownership
- *   point.
+ *   list so the real borrow lifecycle and later queue workflow have one clear
+ *   ownership point.
  * - Keep queue visibility, action-entry placement, and partial-failure handling
  *   tied to one selected-book context instead of scattering actions across the
  *   discovery list.
@@ -14,6 +14,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { BookStatusBadge } from "@/components/books/book-status-badge";
+import { StudentBorrowActionDialog } from "@/components/student-borrows/student-borrow-action-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +93,7 @@ function getActionRecommendation(item: PublicBookDetailItem | null): {
     return {
       eyebrow: "Choose A Book",
       description:
-        "Select a book first. Borrow and queue entry stay attached to the selected-book context in this phase.",
+        "Select a book first. Borrow and queue entry stay attached to the selected-book context so every later circulation action starts from one real book.",
     };
   }
 
@@ -99,22 +101,22 @@ function getActionRecommendation(item: PublicBookDetailItem | null): {
     return {
       eyebrow: "Borrow Entry",
       description:
-        "This book is currently available. The borrow action belongs here, but the actual borrow workflow arrives in the next student phase.",
+        "This selected-book panel now owns the real borrow action. Queue join stays here too, but it should only be used when this selected book is not currently available.",
     };
   }
 
   if (item.status === "borrowed" || item.status === "reserved") {
     return {
-      eyebrow: "Queue Entry",
+      eyebrow: "Borrow Or Queue Branch",
       description:
-        "This book is not immediately available. Queue entry belongs here, but the actual queue join flow arrives in the next student phase.",
+        "This book is not immediately available right now. Borrow attempts and queue joins both stay here and must rely on backend truth for the final outcome.",
     };
   }
 
   return {
     eyebrow: "Availability Restricted",
     description:
-      "This book is not in a normal borrowing state right now. Later student actions stay here, but this record is not currently ready for ordinary borrowing or queue entry.",
+      "This book is not in a normal borrowing state right now. The action entry stays here, but the backend still decides whether borrow or queue requests are allowed.",
   };
 }
 
@@ -324,6 +326,18 @@ interface StudentBookDetailPanelProps {
     item: BookQueueStatusItem | null;
     retry: () => void | Promise<void>;
   };
+  borrowAction: {
+    pending: boolean;
+    error: string | null;
+    clearError: () => void;
+    submit: (bookId: string) => Promise<boolean>;
+  };
+  queueAction: {
+    pending: boolean;
+    error: string | null;
+    clearError: () => void;
+    submit: (bookId: string) => Promise<boolean>;
+  };
   onClearSelection: () => void;
 }
 
@@ -331,13 +345,26 @@ export function StudentBookDetailPanel({
   selectedListItem,
   selectedBook,
   selectedBookQueue,
+  borrowAction,
+  queueAction,
   onClearSelection,
 }: StudentBookDetailPanelProps): React.JSX.Element {
+  const [borrowDialogOpen, setBorrowDialogOpen] = React.useState(false);
   const detailItem = selectedBook.item;
   const displayTitle = detailItem?.title ?? selectedListItem?.title ?? "Selected Book";
   const displayAuthor =
     detailItem?.author ?? selectedListItem?.author ?? "Choose a book to inspect its detail.";
   const recommendation = getActionRecommendation(detailItem);
+  const clearBorrowError = borrowAction.clearError;
+  const clearQueueError = queueAction.clearError;
+  const canJoinQueue =
+    detailItem?.status === "borrowed" || detailItem?.status === "reserved";
+
+  React.useEffect(() => {
+    clearBorrowError();
+    clearQueueError();
+    setBorrowDialogOpen(false);
+  }, [clearBorrowError, clearQueueError, detailItem?.id, selectedListItem?.id]);
 
   if (!selectedListItem && !detailItem) {
     return (
@@ -351,7 +378,8 @@ export function StudentBookDetailPanel({
           </CardTitle>
           <CardDescription className="px-0 text-sm leading-6">
             Discovery lives in the list. Borrow and queue entry stay in this
-            detail panel so later student workflows start from the correct book.
+            detail panel so every real student circulation workflow starts from
+            the correct book.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5 pb-5">
@@ -364,8 +392,8 @@ export function StudentBookDetailPanel({
             </p>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Once you select a book, this panel will show public detail,
-              authenticated queue pressure, and the correct place for later
-              borrow and queue actions.
+              authenticated queue pressure, the live borrow action, and the
+              correct queue-entry point for unavailable books.
             </p>
           </div>
         </CardContent>
@@ -537,7 +565,10 @@ export function StudentBookDetailPanel({
                   {recommendation.eyebrow}
                 </Badge>
                 <Badge variant="secondary" className="rounded-full">
-                  Later student phase
+                  Borrow live
+                </Badge>
+                <Badge variant="secondary" className="rounded-full">
+                  Queue live
                 </Badge>
               </div>
               <CardTitle className="text-lg font-black tracking-tight">
@@ -547,35 +578,94 @@ export function StudentBookDetailPanel({
                 {recommendation.description}
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 px-5 pb-5 sm:grid-cols-3">
+            <CardContent className="grid gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
+              {queueAction.error ? (
+                <div className="sm:col-span-2 xl:col-span-4 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {queueAction.error}
+                </div>
+              ) : null}
               <Button
                 type="button"
-                disabled
                 className="justify-between rounded-2xl"
-                title="Borrow flow arrives in the next student phase."
+                disabled={!detailItem || borrowAction.pending}
+                title={
+                  detailItem
+                    ? "Borrow uses the real backend route from this selected-book context."
+                    : "Select a book first."
+                }
+                onClick={() => {
+                  if (!detailItem) {
+                    return;
+                  }
+
+                  clearBorrowError();
+                  setBorrowDialogOpen(true);
+                }}
               >
-                Borrow
-                <ArrowRight className="h-4 w-4" />
+                {borrowAction.pending ? (
+                  <>
+                    Borrowing...
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  </>
+                ) : (
+                  <>
+                    Borrow
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                  )}
               </Button>
               <Button
                 type="button"
-                disabled
                 variant="outline"
                 className="justify-between rounded-2xl"
-                title="Queue join flow arrives in the later student queue phase."
+                disabled={!detailItem || !canJoinQueue || queueAction.pending}
+                title={
+                  !detailItem
+                    ? "Select a book first."
+                    : canJoinQueue
+                      ? "Join the backend-owned waiting queue for this selected book."
+                      : "Queue join only applies when this selected book is not currently available."
+                }
+                onClick={() => {
+                  if (!detailItem || !canJoinQueue) {
+                    return;
+                  }
+
+                  clearQueueError();
+                  void queueAction.submit(detailItem.id);
+                }}
               >
-                Join Queue
-                <ArrowRight className="h-4 w-4" />
+                {queueAction.pending ? (
+                  <>
+                    Joining...
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  </>
+                ) : (
+                  <>
+                    Join Queue
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
               <Button
-                type="button"
-                disabled
+                asChild
                 variant="outline"
                 className="justify-between rounded-2xl"
-                title="My Queue arrives in the later student queue phase."
               >
-                View My Queue
-                <ArrowRight className="h-4 w-4" />
+                <Link href="/student/borrows">
+                  View My Borrows
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="justify-between rounded-2xl"
+              >
+                <Link href="/student/queue">
+                  View My Queue
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </Button>
             </CardContent>
           </Card>
@@ -590,14 +680,33 @@ export function StudentBookDetailPanel({
                 <p className="text-sm leading-6 text-muted-foreground">
                   Discovery starts in the catalog list, but borrowing and queue
                   entry must stay attached to one selected book. That keeps the
-                  later student workflows tied to the real book context instead
-                  of detached shortcut buttons.
+                  student lifecycle tied to the real book context instead of
+                  detached shortcut buttons.
                 </p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {detailItem ? (
+        <StudentBorrowActionDialog
+          action="borrow"
+          open={borrowDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              clearBorrowError();
+            }
+
+            setBorrowDialogOpen(open);
+          }}
+          bookTitle={detailItem.title}
+          supportingText={`Current status: ${detailItem.status.replace(/_/g, " ")}. Borrow success or conflict still comes from the backend, not from frontend guesses.`}
+          pending={borrowAction.pending}
+          error={borrowAction.error}
+          onConfirm={() => borrowAction.submit(detailItem.id)}
+        />
+      ) : null}
     </div>
   );
 }

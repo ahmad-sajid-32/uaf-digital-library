@@ -7,8 +7,8 @@
  *   student shell.
  * - Keep catalog browsing, selected-book detail, and queue visibility truthful
  *   to the backend contract without copying staff inventory patterns.
- * - Expose the selected-book action location for later student borrow and queue
- *   phases while keeping this phase read-only.
+ * - Keep the selected-book panel as the real borrow entry point while leaving
+ *   queue ownership for the later student queue phase.
  */
 
 "use client";
@@ -45,7 +45,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStudentBorrows } from "@/hooks/useStudentBorrows";
 import { useStudentCatalog } from "@/hooks/useStudentCatalog";
+import { useStudentQueue } from "@/hooks/useStudentQueue";
 import {
   getBookCategoryLabel,
   type BookCategory,
@@ -385,12 +387,47 @@ function StudentCatalogListCard(props: {
 
 export function StudentCatalogScreen(): React.JSX.Element {
   const catalog = useStudentCatalog();
+  const studentBorrows = useStudentBorrows();
+  const studentQueue = useStudentQueue();
+  const borrowBook = studentBorrows.borrowAction.submit;
+  const clearBorrowError = studentBorrows.borrowAction.clearError;
+  const clearQueueError = studentQueue.joinAction.clearError;
+
+  React.useEffect(() => {
+    clearBorrowError();
+    clearQueueError();
+  }, [catalog.selectedBookId, clearBorrowError, clearQueueError]);
+
+  const handleBorrowFromSelectedBook = React.useCallback(
+    async (bookId: string) => {
+      return borrowBook(bookId, {
+        onSuccess: async () => {
+          await Promise.allSettled([
+            catalog.selectedBook.retry(),
+            catalog.selectedBookQueue.retry(),
+          ]);
+        },
+      });
+    },
+    [borrowBook, catalog.selectedBook, catalog.selectedBookQueue],
+  );
+
+  const handleJoinQueueFromSelectedBook = React.useCallback(
+    async (bookId: string) => {
+      return studentQueue.joinAction.submit(bookId, {
+        onSuccess: async () => {
+          await Promise.allSettled([catalog.selectedBookQueue.retry()]);
+        },
+      });
+    },
+    [catalog.selectedBookQueue, studentQueue.joinAction],
+  );
 
   return (
     <PageContainer
       eyebrow="Student Discovery"
       title="Catalog"
-      description="Browse the public catalog, inspect one selected book, and read queue pressure in the correct selected-book context."
+      description="Browse the public catalog, inspect one selected book, borrow from the correct selected-book context, and read queue pressure without copying staff inventory behavior."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full">
@@ -470,6 +507,18 @@ export function StudentCatalogScreen(): React.JSX.Element {
                   selectedListItem={catalog.selectedListItem}
                   selectedBook={catalog.selectedBook}
                   selectedBookQueue={catalog.selectedBookQueue}
+                  borrowAction={{
+                    pending: studentBorrows.borrowAction.pending,
+                    error: studentBorrows.borrowAction.error,
+                    clearError: studentBorrows.borrowAction.clearError,
+                    submit: handleBorrowFromSelectedBook,
+                  }}
+                  queueAction={{
+                    pending: studentQueue.joinAction.pending,
+                    error: studentQueue.joinAction.error,
+                    clearError: studentQueue.joinAction.clearError,
+                    submit: handleJoinQueueFromSelectedBook,
+                  }}
                   onClearSelection={catalog.clearSelectedBook}
                 />
               </ScrollReveal>

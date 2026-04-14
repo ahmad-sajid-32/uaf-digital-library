@@ -36,6 +36,8 @@ export function AssistantMessage({
   message: AssistantMessageItem;
 }): React.JSX.Element {
   const isUser = message.role === "user";
+  const shouldShowFallbackState =
+    !isUser && Boolean(message.fallback_used);
 
   if (isUser) {
     return (
@@ -65,6 +67,13 @@ export function AssistantMessage({
           <p className="whitespace-pre-wrap text-sm leading-7 text-foreground sm:text-[0.95rem]">
             {message.content}
           </p>
+          {shouldShowFallbackState ? (
+            <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/8 px-3 py-3 text-sm leading-6 text-amber-950 dark:text-amber-100">
+              This answer used the assistant fallback because it could not ground
+              the response in the retrieved official university documents for
+              this turn.
+            </div>
+          ) : null}
         </div>
 
         <AssistantCitations citations={message.citations} />

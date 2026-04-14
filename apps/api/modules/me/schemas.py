@@ -108,6 +108,109 @@ class QueueEntryItem(BaseModel):
     hold_expires_at: Optional[datetime] = Field(None, example="2026-03-18T09:00:00Z")
 
 
+class StudentDashboardSummary(BaseModel):
+    """
+    KPI strip summary for the authenticated student's dashboard.
+    """
+
+    active_borrow_count: int = Field(..., example=2)
+    overdue_borrow_count: int = Field(..., example=1)
+    pending_fine_count: int = Field(..., example=1)
+    pending_fine_amount: Decimal = Field(..., example=250)
+    active_queue_count: int = Field(..., example=2)
+    hold_assigned_count: int = Field(..., example=1)
+
+
+class StudentDashboardNextDueBorrow(BaseModel):
+    """
+    Nearest due active borrow for dashboard attention.
+    """
+
+    transaction_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440010")
+    book_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    title: str = Field(..., example="Introduction to Algorithms")
+    due_date: datetime = Field(..., example="2026-03-15T10:00:00Z")
+
+
+class StudentDashboardCurrentHold(BaseModel):
+    """
+    Current hold-ready queue item for dashboard attention.
+    """
+
+    book_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    title: str = Field(..., example="Database Systems")
+    hold_expires_at: Optional[datetime] = Field(
+        None,
+        example="2026-03-18T09:00:00Z",
+    )
+    notified_at: Optional[datetime] = Field(
+        None,
+        example="2026-03-16T09:00:00Z",
+    )
+
+
+class StudentDashboardActiveBorrowPreviewItem(BaseModel):
+    """
+    Small active-borrows preview row for the student dashboard.
+    """
+
+    transaction_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440010")
+    book_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    title: str = Field(..., example="Introduction to Algorithms")
+    due_date: datetime = Field(..., example="2026-03-15T10:00:00Z")
+    renewal_count: int = Field(..., example=1)
+    is_overdue: bool = Field(..., example=False)
+
+
+class StudentDashboardQueuePreviewItem(BaseModel):
+    """
+    Small queue preview row for the student dashboard.
+    """
+
+    book_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    title: str = Field(..., example="Database Systems")
+    status: str = Field(..., example="waiting")
+    position: Optional[int] = Field(None, example=2)
+    hold_expires_at: Optional[datetime] = Field(
+        None,
+        example="2026-03-18T09:00:00Z",
+    )
+
+
+class StudentDashboardFinePreviewItem(BaseModel):
+    """
+    Small fine preview row for the student dashboard.
+    """
+
+    fine_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440020")
+    title: str = Field(..., example="Introduction to Algorithms")
+    amount: Decimal = Field(..., example=250)
+    status: str = Field(..., example="pending")
+    fine_created_at: datetime = Field(..., example="2026-03-16T09:00:00Z")
+
+
+class StudentDashboardResultSummary(BaseModel):
+    """
+    Optional compact academic summary for the student dashboard.
+    """
+
+    cgpa: Optional[Decimal] = Field(None, example=3.42)
+    latest_semester_label: Optional[str] = Field(None, example="Semester 6")
+    latest_semester_gpa: Optional[Decimal] = Field(None, example=3.61)
+
+
+class StudentDashboardData(BaseModel):
+    summary: StudentDashboardSummary
+    next_due_borrow: Optional[StudentDashboardNextDueBorrow] = None
+    current_hold: Optional[StudentDashboardCurrentHold] = None
+    active_borrows_preview: List[StudentDashboardActiveBorrowPreviewItem] = (
+        Field(default_factory=list)
+    )
+    queue_preview: List[StudentDashboardQueuePreviewItem] = Field(default_factory=list)
+    fine_preview: List[StudentDashboardFinePreviewItem] = Field(default_factory=list)
+    result_summary: Optional[StudentDashboardResultSummary] = None
+
+
 class ActiveBorrowsData(BaseModel):
     items: List[ActiveBorrowItem]
 
@@ -179,6 +282,13 @@ class QueueEntriesResponse(BaseModel):
     status: int = Field(..., example=200)
     message: str = Field(..., example="Queue entries retrieved successfully")
     data: QueueEntriesData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
+class StudentDashboardResponse(BaseModel):
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Student dashboard retrieved successfully")
+    data: StudentDashboardData
     timestamp_ms: int = Field(..., example=1741348800000)
 
 
@@ -290,6 +400,63 @@ QUEUE_ENTRIES_SUCCESS_EXAMPLE = {
                 "hold_expires_at": None,
             }
         ]
+    },
+    "timestamp_ms": 1741348800000,
+}
+
+STUDENT_DASHBOARD_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Student dashboard retrieved successfully",
+    "data": {
+        "summary": {
+            "active_borrow_count": 2,
+            "overdue_borrow_count": 1,
+            "pending_fine_count": 1,
+            "pending_fine_amount": 250,
+            "active_queue_count": 2,
+            "hold_assigned_count": 1,
+        },
+        "next_due_borrow": {
+            "transaction_id": "550e8400-e29b-41d4-a716-446655440010",
+            "book_id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Introduction to Algorithms",
+            "due_date": "2026-03-15T10:00:00Z",
+        },
+        "current_hold": {
+            "book_id": "550e8400-e29b-41d4-a716-446655440001",
+            "title": "Database Systems",
+            "hold_expires_at": "2026-03-18T09:00:00Z",
+            "notified_at": "2026-03-16T09:00:00Z",
+        },
+        "active_borrows_preview": [
+            {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440010",
+                "book_id": "550e8400-e29b-41d4-a716-446655440000",
+                "title": "Introduction to Algorithms",
+                "due_date": "2026-03-15T10:00:00Z",
+                "renewal_count": 1,
+                "is_overdue": False,
+            }
+        ],
+        "queue_preview": [
+            {
+                "book_id": "550e8400-e29b-41d4-a716-446655440001",
+                "title": "Database Systems",
+                "status": "notified",
+                "position": 1,
+                "hold_expires_at": "2026-03-18T09:00:00Z",
+            }
+        ],
+        "fine_preview": [
+            {
+                "fine_id": "550e8400-e29b-41d4-a716-446655440020",
+                "title": "Introduction to Algorithms",
+                "amount": 250,
+                "status": "pending",
+                "fine_created_at": "2026-03-16T09:00:00Z",
+            }
+        ],
+        "result_summary": None,
     },
     "timestamp_ms": 1741348800000,
 }

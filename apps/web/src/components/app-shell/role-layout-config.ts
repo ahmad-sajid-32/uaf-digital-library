@@ -136,6 +136,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
   ],
   student: [
     {
+      id: "dashboard",
+      label: "Dashboard",
+      href: "/student/dashboard",
+      icon: "layout-dashboard",
+      match: "exact",
+    },
+    {
       id: "catalog",
       label: "Catalog",
       href: "/student/catalog",
@@ -143,21 +150,18 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
-      id: "dashboard",
-      label: "Dashboard",
-      href: "/student/dashboard",
-      icon: "layout-dashboard",
-      match: "exact",
-      disabled: true,
-      badge: "Later",
-    },
-    {
       id: "borrows",
       label: "My Borrows",
       href: "/student/borrows",
       icon: "book-copy",
       match: "startsWith",
-      disabled: true,
+    },
+    {
+      id: "queue",
+      label: "My Queue",
+      href: "/student/queue",
+      icon: "scroll-text",
+      match: "startsWith",
     },
     {
       id: "fines",
@@ -165,7 +169,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       href: "/student/fines",
       icon: "credit-card",
       match: "startsWith",
-      disabled: true,
+    },
+    {
+      id: "result",
+      label: "Result",
+      href: "/student/result",
+      icon: "graduation-cap",
+      match: "startsWith",
     },
     {
       id: "assistant",
@@ -177,8 +187,18 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
   ],
 };
 
-function getRoleMenuItems(): UserAvatarMenuItem[] {
-  return [...COMMON_MENU_ITEMS];
+function getRoleMenuItems(role: AppRole): UserAvatarMenuItem[] {
+  return COMMON_MENU_ITEMS.map((item) => {
+    if (role === "student" && item.id === "profile") {
+      return {
+        ...item,
+        href: "/student/profile",
+        disabled: false,
+      };
+    }
+
+    return { ...item };
+  });
 }
 
 export function getRoleShellLayoutConfig(
@@ -191,7 +211,7 @@ export function getRoleShellLayoutConfig(
     roleLabel,
     dashboardHref: getRoleDashboardPath(role),
     navItems: ROLE_NAV_ITEMS[role],
-    menuItems: getRoleMenuItems(),
+    menuItems: getRoleMenuItems(role),
   };
 }
 

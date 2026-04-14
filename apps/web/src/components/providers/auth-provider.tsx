@@ -27,6 +27,7 @@ interface AuthContextValue {
   auth: AppAuthState;
   hydrated: boolean;
   refreshAuthState: () => Promise<void>;
+  overrideProfileDisplayName: (fullName: string | null) => void;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -34,6 +35,7 @@ const FALLBACK_AUTH_CONTEXT: AuthContextValue = {
   auth: getUnknownAuthState(),
   hydrated: false,
   refreshAuthState: async () => undefined,
+  overrideProfileDisplayName: () => undefined,
 };
 
 function mapClientSession(session: Session | null): AppAuthState {
@@ -60,6 +62,52 @@ export function AuthProvider({
   const [auth, setAuth] = React.useState<AppAuthState>(getUnknownAuthState);
   const [hydrated, setHydrated] = React.useState(false);
   const refreshInFlightRef = React.useRef<Promise<void> | null>(null);
+  const profileDisplayNameOverrideRef = React.useRef<string | null>(null);
+
+  const applyAuthState = React.useCallback((nextAuth: AppAuthState) => {
+    const activeOverride =
+      nextAuth.status === "authenticated"
+        ? profileDisplayNameOverrideRef.current
+        : null;
+
+    if (nextAuth.status !== "authenticated") {
+      profileDisplayNameOverrideRef.current = null;
+    }
+
+    React.startTransition(() => {
+      setAuth(
+        activeOverride
+          ? {
+              ...nextAuth,
+              fullName: activeOverride,
+            }
+          : nextAuth,
+      );
+      setHydrated(true);
+    });
+  }, []);
+
+  const overrideProfileDisplayName = React.useCallback((fullName: string | null) => {
+    const normalizedFullName =
+      typeof fullName === "string" && fullName.trim()
+        ? fullName.trim()
+        : null;
+
+    profileDisplayNameOverrideRef.current = normalizedFullName;
+
+    React.startTransition(() => {
+      setAuth((currentAuth) => {
+        if (currentAuth.status !== "authenticated") {
+          return currentAuth;
+        }
+
+        return {
+          ...currentAuth,
+          fullName: normalizedFullName,
+        };
+      });
+    });
+  }, []);
 
   const refreshAuthState = React.useCallback(async () => {
     if (refreshInFlightRef.current) {
@@ -70,34 +118,25 @@ export function AuthProvider({
       const { user, error: userError } = await readSupabaseBrowserUser();
 
       if (userError || !user) {
-        React.startTransition(() => {
-          setAuth(mapClientSession(null));
-          setHydrated(true);
-        });
+        applyAuthState(mapClientSession(null));
         return;
       }
 
       const { session, error } = await readSupabaseBrowserSession();
 
       if (error || !session) {
-        React.startTransition(() => {
-          setAuth(mapClientSession(null));
-          setHydrated(true);
-        });
+        applyAuthState(mapClientSession(null));
         return;
       }
 
-      React.startTransition(() => {
-        setAuth(mapClientSession(session));
-        setHydrated(true);
-      });
+      applyAuthState(mapClientSession(session));
     })().finally(() => {
       refreshInFlightRef.current = null;
     });
 
     refreshInFlightRef.current = refreshPromise;
     return refreshPromise;
-  }, []);
+  }, [applyAuthState]);
 
   React.useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -116,19 +155,13 @@ export function AuthProvider({
         case "SIGNED_IN":
         case "TOKEN_REFRESHED":
         case "USER_UPDATED":
-          React.startTransition(() => {
-            setAuth(mapClientSession(session));
-            setHydrated(true);
-          });
+          applyAuthState(mapClientSession(session));
           return;
         case "INITIAL_SESSION":
           void refreshAuthState().catch(() => undefined);
           return;
         case "SIGNED_OUT":
-          React.startTransition(() => {
-            setAuth(mapClientSession(null));
-            setHydrated(true);
-          });
+          applyAuthState(mapClientSession(null));
           return;
         default:
           return;
@@ -139,15 +172,16 @@ export function AuthProvider({
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [refreshAuthState]);
+  }, [applyAuthState, refreshAuthState]);
 
   const contextValue = React.useMemo<AuthContextValue>(
     () => ({
       auth,
       hydrated,
       refreshAuthState,
+      overrideProfileDisplayName,
     }),
-    [auth, hydrated, refreshAuthState],
+    [auth, hydrated, overrideProfileDisplayName, refreshAuthState],
   );
 
   return (

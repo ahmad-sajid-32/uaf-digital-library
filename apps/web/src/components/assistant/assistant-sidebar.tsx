@@ -1,6 +1,6 @@
 // apps/web/src/components/assistant/assistant-sidebar.tsx
 /**
- * Conversation history surface for the admin assistant workspace.
+ * Conversation history surface for the shared assistant workspace.
  *
  * Purpose:
  * - Provide desktop collapse behavior and mobile-friendly conversation history.
@@ -75,6 +75,7 @@ export function AssistantSidebar({
   conversationsRefreshing,
   activeConversationId,
   submitPending,
+  workspaceLabel = "Assistant",
   collapsed = false,
   mobile = false,
   onNewConversation,
@@ -90,6 +91,7 @@ export function AssistantSidebar({
   conversationsRefreshing: boolean;
   activeConversationId: string | null;
   submitPending: boolean;
+  workspaceLabel?: string;
   collapsed?: boolean;
   mobile?: boolean;
   onNewConversation: () => void;
@@ -194,7 +196,7 @@ export function AssistantSidebar({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
-              Admin Assistant
+              {workspaceLabel}
             </p>
             <h2 className="mt-1 text-base font-semibold text-foreground">
               Conversation history

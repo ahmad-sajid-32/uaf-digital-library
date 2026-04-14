@@ -22,7 +22,7 @@ export function getPostLoginRedirectPath(auth: AppAuthState): string {
   if (auth.status === "authenticated") {
     switch (auth.role) {
       case "student":
-        return "/student/catalog";
+        return "/student/dashboard";
       case "librarian":
         return "/librarian/dashboard";
       case "admin":

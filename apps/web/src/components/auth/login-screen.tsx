@@ -103,6 +103,15 @@ export function LoginScreen(): React.JSX.Element {
       return;
     }
 
+    if (authState === "account-deleted") {
+      handledToastStateRef.current = toastStateKey;
+      toast.success("Your account was deleted successfully.", {
+        id: "login-account-deleted",
+      });
+      router.replace("/login", { scroll: false });
+      return;
+    }
+
     handledToastStateRef.current = null;
   }, [router, searchParams]);
 

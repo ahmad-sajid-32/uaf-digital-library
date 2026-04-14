@@ -28,6 +28,7 @@ import {
 import { useAuthSessionActions } from "@/hooks/useAuthSessionActions";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
+const MIN_ASSISTANT_QUERY_LENGTH = 3;
 
 interface ConversationMessagesState {
   status: AsyncStatus;
@@ -373,7 +374,17 @@ export function useAssistant() {
   const submitQuery = React.useCallback(async (): Promise<boolean> => {
     const normalizedQuery = normalizeQuery(composerQuery);
 
-    if (normalizedQuery.length < 3 || submitPending) {
+    if (normalizedQuery.length < MIN_ASSISTANT_QUERY_LENGTH) {
+      toast.error(
+        `Enter at least ${MIN_ASSISTANT_QUERY_LENGTH} characters before sending.`,
+        {
+          id: "assistant-submit-validation-error",
+        },
+      );
+      return false;
+    }
+
+    if (submitPending) {
       return false;
     }
 
@@ -550,7 +561,10 @@ export function useAssistant() {
     deletePendingConversationId,
     hasConversations: conversations.length > 0,
     isDraftConversation: activeConversationId === null,
-    canSubmitQuery: normalizedComposerQuery.length >= 1 && !submitPending,
+    canSubmitQuery:
+      normalizedComposerQuery.length >= MIN_ASSISTANT_QUERY_LENGTH
+      && !submitPending,
+    minQueryLength: MIN_ASSISTANT_QUERY_LENGTH,
     startNewConversation,
     selectConversation,
     submitQuery,

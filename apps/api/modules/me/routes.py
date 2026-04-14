@@ -21,6 +21,7 @@ from modules.me.schemas import (
     DELETE_MY_ACCOUNT_SUCCESS_EXAMPLE,
     FINE_HISTORY_SUCCESS_EXAMPLE,
     FINES_SUCCESS_EXAMPLE,
+    STUDENT_DASHBOARD_SUCCESS_EXAMPLE,
     QUEUE_ENTRIES_SUCCESS_EXAMPLE,
     UPDATE_MY_PROFILE_SUCCESS_EXAMPLE,
     ActiveBorrowsData,
@@ -35,6 +36,8 @@ from modules.me.schemas import (
     QueueEntriesData,
     QueueEntriesResponse,
     SimpleMessageResponse,
+    StudentDashboardData,
+    StudentDashboardResponse,
     UpdateMyProfileRequest,
 )
 from modules.me.service import MeService
@@ -65,6 +68,19 @@ def _resolve_runtime_error_status(message: str) -> int:
     if "Invalid full_name" in message:
         return status.HTTP_400_BAD_REQUEST
     return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+def _require_student_user_id(request: Request) -> str:
+    user_id = _require_user_id(request)
+    role = getattr(request.state, "role", None)
+
+    if role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient privileges",
+        )
+
+    return user_id
 
 
 @router.get(
@@ -326,6 +342,84 @@ async def get_queue_entries(
         status=200,
         message="Queue entries retrieved successfully",
         data=QueueEntriesData(items=items),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.get(
+    "/dashboard",
+    response_model=StudentDashboardResponse,
+    responses={
+        200: {
+            "description": "Student dashboard retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": STUDENT_DASHBOARD_SUCCESS_EXAMPLE,
+                }
+            },
+        }
+    },
+)
+async def get_student_dashboard(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> StudentDashboardResponse:
+    del credentials
+    user_id = _require_student_user_id(request)
+
+    logger.info(
+        "ME: student dashboard request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "role": getattr(request.state, "role", None),
+        },
+    )
+
+    try:
+        dashboard = await MeService.get_student_dashboard(user_id)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "ME: student dashboard failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "role": getattr(request.state, "role", None),
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
+
+    logger.info(
+        "ME: student dashboard success",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "role": getattr(request.state, "role", None),
+            "active_borrow_count": dashboard.get("summary", {}).get(
+                "active_borrow_count"
+            ),
+            "pending_fine_count": dashboard.get("summary", {}).get(
+                "pending_fine_count"
+            ),
+            "active_queue_count": dashboard.get("summary", {}).get(
+                "active_queue_count"
+            ),
+        },
+    )
+
+    return StudentDashboardResponse(
+        status=200,
+        message="Student dashboard retrieved successfully",
+        data=StudentDashboardData(**dashboard),
         timestamp_ms=int(time.time() * 1000),
     )
 
