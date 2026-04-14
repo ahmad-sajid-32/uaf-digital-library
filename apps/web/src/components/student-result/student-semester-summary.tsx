@@ -25,7 +25,7 @@ export function StudentSemesterSummary({
             No semester aggregates were returned.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            The protected result payload did not include semester-level GPA
+            The academic result payload did not include semester-level GPA
             groups for this account. The screen preserves that truth instead of
             inventing missing academic values.
           </p>

@@ -77,6 +77,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
+      id: "result",
+      label: "Result",
+      href: "/admin/result",
+      icon: "graduation-cap",
+      match: "startsWith",
+    },
+    {
       id: "assistant",
       label: "Assistant",
       href: "/admin/assistant",
@@ -118,6 +125,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       label: "Documents",
       href: "/librarian/documents",
       icon: "scroll-text",
+      match: "startsWith",
+    },
+    {
+      id: "result",
+      label: "Result",
+      href: "/librarian/result",
+      icon: "graduation-cap",
       match: "startsWith",
     },
     {
@@ -183,11 +197,34 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
 
 function getRoleMenuItems(role: AppRole): UserAvatarMenuItem[] {
   return COMMON_MENU_ITEMS.map((item) => {
-    if (role === "student" && item.id === "profile") {
+    if (item.id === "profile") {
+      if (role === "student") {
+        return {
+          ...item,
+          href: "/student/profile",
+          disabled: false,
+        };
+      }
+
+      if (role === "admin") {
+        return {
+          ...item,
+          href: "/admin/profile",
+          disabled: false,
+        };
+      }
+
+      if (role === "librarian") {
+        return {
+          ...item,
+          href: "/librarian/profile",
+          disabled: false,
+        };
+      }
+
       return {
         ...item,
-        href: "/student/profile",
-        disabled: false,
+        disabled: true,
       };
     }
 

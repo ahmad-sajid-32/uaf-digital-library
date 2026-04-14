@@ -15,11 +15,19 @@ import { cn } from "@/lib/utils";
 interface StudentResultHeaderProps {
   result: StudentResultPayload;
   gpaSummary: StudentGPASummary;
+  scopeBadgeLabel?: string;
+  identityHelperText?: string;
+  registrationHelperText?: string;
+  summaryHelperText?: string;
 }
 
 export function StudentResultHeader({
   result,
   gpaSummary,
+  scopeBadgeLabel = "Protected result",
+  identityHelperText = "Identity is rendered from the backend result payload only.",
+  registrationHelperText = "Registration is shown exactly as returned by the academic result payload.",
+  summaryHelperText = "This screen shows academic result truth without client-side recomputation.",
 }: StudentResultHeaderProps) {
   const calculationPresentation = getStudentResultCalculationPresentation(
     gpaSummary.calculation_status,
@@ -38,7 +46,7 @@ export function StudentResultHeader({
                 {calculationPresentation.label}
               </Badge>
               <Badge variant="secondary" className="rounded-full">
-                Protected result
+                {scopeBadgeLabel}
               </Badge>
             </div>
             <CardTitle className="text-2xl font-black tracking-tight text-foreground">
@@ -72,7 +80,7 @@ export function StudentResultHeader({
             {getStudentResultStudentName(result.student_info)}
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Identity is rendered from the protected backend payload only.
+            {identityHelperText}
           </p>
         </div>
 
@@ -84,7 +92,7 @@ export function StudentResultHeader({
             {getStudentResultRegistration(result.student_info)}
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Public registration-number lookup is intentionally not exposed here.
+            {registrationHelperText}
           </p>
         </div>
 
@@ -97,8 +105,7 @@ export function StudentResultHeader({
             {gpaSummary.semesters.length === 1 ? "" : "s"}
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            This screen shows your protected academic record without client-side
-            recomputation.
+            {summaryHelperText}
           </p>
         </div>
       </CardContent>
