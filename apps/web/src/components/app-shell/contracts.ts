@@ -44,8 +44,7 @@ export type AppShellIconName =
   | "book-copy"
   | "library-big"
   | "credit-card"
-  | "user-circle-2"
-  | "settings";
+  | "user-circle-2";
 
 export interface AppShellUserSummary {
   userId: string;

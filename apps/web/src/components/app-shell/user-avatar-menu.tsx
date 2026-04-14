@@ -4,7 +4,7 @@
  *
  * Purpose:
  * - Present the current signed-in user summary in one consistent menu surface.
- * - Keep profile/settings navigation and logout action together.
+ * - Keep profile navigation and logout action together.
  * - Reuse existing dropdown and avatar primitives instead of inventing a new
  *   overlay pattern.
  */

@@ -18,7 +18,6 @@ import {
   LayoutDashboard,
   LibraryBig,
   ScrollText,
-  Settings,
   UserCircle2,
   Users,
 } from "lucide-react";
@@ -34,7 +33,6 @@ const APP_SHELL_ICON_MAP = {
   "layout-dashboard": LayoutDashboard,
   "library-big": LibraryBig,
   "scroll-text": ScrollText,
-  settings: Settings,
   "user-circle-2": UserCircle2,
   users: Users,
 } satisfies Record<AppShellIconName, typeof LayoutDashboard>;

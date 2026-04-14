@@ -30,12 +30,6 @@ const COMMON_MENU_ITEMS: UserAvatarMenuItem[] = [
     icon: "user-circle-2",
     disabled: true,
   },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: "settings",
-    disabled: true,
-  },
 ];
 
 const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
