@@ -1,3 +1,4 @@
+# apps/api/modules/ai/service.py
 """
 Service layer for the AI assistant module of the
 UAF Smart E-Library & University Information Assistant.
@@ -31,10 +32,6 @@ MAX_FOLLOW_UP_USER_MESSAGES = 2
 
 @dataclass(frozen=True)
 class AssistantIntentProfile:
-    """
-    Backend-owned retrieval profile for assistant document-grounded turns.
-    """
-
     name: str
     top_k: int
     similarity_threshold: float
@@ -44,10 +41,6 @@ class AssistantIntentProfile:
 
 
 class AIService:
-    """
-    Route-facing orchestration for shared assistant turns.
-    """
-
     @staticmethod
     async def generate_assistant_turn(
         *,
@@ -136,18 +129,6 @@ class AIService:
         )
 
         if not items:
-            logger.info(
-                "AI: assistant document retrieval returned no matches",
-                extra={
-                    "request_id": request_id,
-                    "user_id": user_id,
-                    "query_length": len(normalized_query),
-                    "intent_profile": profile.name,
-                    "assistant_mode": assistant_mode,
-                    "retrieved_chunks_count": 0,
-                    "fallback_used": True,
-                },
-            )
             return {
                 "query": normalized_query,
                 "answer": FALLBACK_ANSWER,
@@ -181,19 +162,6 @@ class AIService:
         fallback_used = answer.strip() == FALLBACK_ANSWER
         citations = [] if fallback_used else AIService._build_citations(items[: profile.top_k])
 
-        logger.info(
-            "AI: assistant generation completed",
-            extra={
-                "request_id": request_id,
-                "user_id": user_id,
-                "query_length": len(normalized_query),
-                "intent_profile": profile.name,
-                "assistant_mode": assistant_mode,
-                "retrieved_chunks_count": len(items),
-                "fallback_used": fallback_used,
-            },
-        )
-
         return {
             "query": normalized_query,
             "answer": answer.strip(),
@@ -207,15 +175,6 @@ class AIService:
 
     @staticmethod
     def resolve_assistant_intent_profile(query_text: str) -> AssistantIntentProfile:
-        """
-        Resolve one deterministic backend-owned retrieval profile
-        for document-grounded assistant turns.
-
-        Important:
-        - This function must use user-topic context only.
-        - Prior assistant wording must not hijack intent resolution.
-        """
-
         lowered = query_text.lower()
         default_threshold = settings.document_retrieval_similarity_threshold
 
@@ -590,7 +549,10 @@ class AIService:
                     "chunk_index": item["chunk_index"],
                     "section_label": item.get("section_label"),
                     "page_number": item.get("page_number"),
-                    "similarity_score": item["similarity_score"],
+                    "similarity_score": max(
+                        0.0,
+                        min(1.0, float(item["similarity_score"])),
+                    ),
                     "rank": rank,
                     "content_hash": item.get("content_hash"),
                 }

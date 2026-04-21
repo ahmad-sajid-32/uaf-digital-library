@@ -9,7 +9,7 @@ Responsibilities:
 - Keep route handlers thin and return normalized conversation/message payloads.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import asyncpg
@@ -26,10 +26,6 @@ RECENT_HISTORY_LIMIT = 8
 
 
 class AssistantService:
-    """
-    Route-facing conversation and message orchestration for the shared assistant.
-    """
-
     @staticmethod
     async def list_conversations(user_id: str) -> list[dict[str, Any]]:
         pool = Database.get_pool()
@@ -46,12 +42,20 @@ class AssistantService:
                         c.updated_at,
                         c.last_message_at,
                         case
-                            when lm.content is null then null
-                            when char_length(lm.content) > $2::integer
-                                then left(lm.content, $2::integer - 3) || '...'
-                            else lm.content
+                            when coalesce(lam.content, lm.content) is null then null
+                            when char_length(coalesce(lam.content, lm.content)) > $2::integer
+                                then left(coalesce(lam.content, lm.content), $2::integer - 3) || '...'
+                            else coalesce(lam.content, lm.content)
                         end as last_message_preview
                     from library.ai_conversations c
+                    left join lateral (
+                        select m.content
+                        from library.ai_messages m
+                        where m.conversation_id = c.id
+                          and m.role = 'assistant'
+                        order by m.created_at desc, m.id desc
+                        limit 1
+                    ) lam on true
                     left join lateral (
                         select m.content
                         from library.ai_messages m
@@ -535,12 +539,20 @@ class AssistantService:
                 c.updated_at,
                 c.last_message_at,
                 case
-                    when lm.content is null then null
-                    when char_length(lm.content) > $3::integer
-                        then left(lm.content, $3::integer - 3) || '...'
-                    else lm.content
+                    when coalesce(lam.content, lm.content) is null then null
+                    when char_length(coalesce(lam.content, lm.content)) > $3::integer
+                        then left(coalesce(lam.content, lm.content), $3::integer - 3) || '...'
+                    else coalesce(lam.content, lm.content)
                 end as last_message_preview
             from library.ai_conversations c
+            left join lateral (
+                select m.content
+                from library.ai_messages m
+                where m.conversation_id = c.id
+                  and m.role = 'assistant'
+                order by m.created_at desc, m.id desc
+                limit 1
+            ) lam on true
             left join lateral (
                 select m.content
                 from library.ai_messages m
@@ -730,6 +742,10 @@ class AssistantService:
         trimmed = normalized.rstrip("?.! ")
 
         if not trimmed:
+            return "New Conversation"
+
+        short_greetings = {"hi", "hello", "hey", "ok", "okay", "thanks", "thank you"}
+        if trimmed.lower() in short_greetings:
             return "New Conversation"
 
         if len(trimmed) <= MAX_TITLE_CHARS:

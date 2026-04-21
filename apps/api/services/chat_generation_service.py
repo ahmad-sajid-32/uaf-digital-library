@@ -4,7 +4,7 @@ Chat generation service for the
 UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
-- Call the Groq OpenAI-compatible chat completions API for assistant chat.
+- Call the Groq OpenAI-compatible chat completions API.
 - Support grounded-document and general assistant generation modes.
 - Validate the provider response shape and return answer text only.
 """
@@ -45,10 +45,6 @@ GenerationMode = Literal["grounded", "general"]
 
 
 class ChatGenerationService:
-    """
-    Groq chat generation adapter with grounded and general modes.
-    """
-
     @staticmethod
     async def generate_answer(
         query: str,
@@ -56,9 +52,6 @@ class ChatGenerationService:
         conversation_history_block: str | None = None,
         mode: GenerationMode = "grounded",
     ) -> str:
-        """
-        Generate an answer using either grounded-document mode or general mode.
-        """
         if mode == "grounded" and not (context_block or "").strip():
             raise RuntimeError("Generation failed")
 
@@ -92,10 +85,7 @@ class ChatGenerationService:
                         "max_tokens": settings.bytez_chat_max_tokens,
                         "messages": [
                             {"role": "system", "content": system_prompt},
-                            {
-                                "role": "user",
-                                "content": user_content,
-                            },
+                            {"role": "user", "content": user_content},
                         ],
                     },
                 )
