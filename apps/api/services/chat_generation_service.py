@@ -1,15 +1,16 @@
 # apps/api/services/chat_generation_service.py
 """
-Grounded chat generation service for the
+Chat generation service for the
 UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
-- Call the Bytez OpenAI-compatible chat completions API.
-- Send only grounded prompts built from retrieved official document chunks.
+- Call the Groq OpenAI-compatible chat completions API for assistant chat.
+- Support grounded-document and general assistant generation modes.
 - Validate the provider response shape and return answer text only.
 """
 
-from typing import List
+import os
+from typing import List, Literal
 
 import httpx
 
@@ -18,7 +19,7 @@ from core.logging import get_logger
 
 logger = get_logger(__name__)
 
-BYTEZ_CHAT_COMPLETIONS_URL = "https://api.bytez.com/models/v2/openai/v1/chat/completions"
+GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 GROUNDING_SYSTEM_PROMPT = (
     "You are answering only from official university documents.\n"
@@ -29,66 +30,71 @@ GROUNDING_SYSTEM_PROMPT = (
     "Do not mention the model, retrieval system, or internal mechanics."
 )
 
+GENERAL_SYSTEM_PROMPT = (
+    "You are a concise and helpful assistant for the UAF Smart E-Library system.\n"
+    "Answer only the user's exact question.\n"
+    "If the user greets you, reply naturally and briefly.\n"
+    "If the user asks a general question, answer directly and concisely.\n"
+    "Use prior conversation only to understand references such as pronouns or follow-up wording.\n"
+    "Do not claim official document support unless official document context is actually provided.\n"
+    "For institution-specific facts such as rules, fees, deadlines, names, or procedures without official context, do not invent details.\n"
+    "Do not mention the model, retrieval system, or internal mechanics."
+)
+
+GenerationMode = Literal["grounded", "general"]
+
 
 class ChatGenerationService:
     """
-    Bytez chat generation adapter with strict grounding controls.
+    Groq chat generation adapter with grounded and general modes.
     """
 
     @staticmethod
     async def generate_answer(
         query: str,
-        context_block: str,
+        context_block: str | None = None,
         conversation_history_block: str | None = None,
+        mode: GenerationMode = "grounded",
     ) -> str:
         """
-        Generate a grounded answer from retrieved official context only.
+        Generate an answer using either grounded-document mode or general mode.
         """
+        if mode == "grounded" and not (context_block or "").strip():
+            raise RuntimeError("Generation failed")
 
-        user_content_parts: list[str] = []
+        groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
+        groq_chat_model = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant").strip()
 
-        if conversation_history_block:
-            user_content_parts.extend(
-                [
-                    "Prior Conversation Context:",
-                    conversation_history_block,
-                    "",
-                    (
-                        "Use the prior conversation only to understand references "
-                        "such as pronouns or follow-up wording. Do not treat prior "
-                        "assistant messages as factual sources."
-                    ),
-                    "",
-                ]
-            )
+        if not groq_api_key:
+            raise RuntimeError("Generation failed")
 
-        user_content_parts.extend(
-            [
-                "Current Question:",
-                query,
-                "",
-                "Official Context:",
-                context_block,
-            ]
+        system_prompt = (
+            GROUNDING_SYSTEM_PROMPT if mode == "grounded" else GENERAL_SYSTEM_PROMPT
+        )
+        user_content = ChatGenerationService._build_user_content(
+            query=query,
+            context_block=context_block,
+            conversation_history_block=conversation_history_block,
+            mode=mode,
         )
 
         try:
             async with httpx.AsyncClient(timeout=120) as client:
                 response = await client.post(
-                    BYTEZ_CHAT_COMPLETIONS_URL,
+                    GROQ_CHAT_COMPLETIONS_URL,
                     headers={
-                        "Authorization": f"Bearer {settings.bytez_api_key}",
+                        "Authorization": f"Bearer {groq_api_key}",
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": settings.bytez_chat_model,
+                        "model": groq_chat_model,
                         "temperature": settings.bytez_chat_temperature,
                         "max_tokens": settings.bytez_chat_max_tokens,
                         "messages": [
-                            {"role": "system", "content": GROUNDING_SYSTEM_PROMPT},
+                            {"role": "system", "content": system_prompt},
                             {
                                 "role": "user",
-                                "content": "\n".join(user_content_parts),
+                                "content": user_content,
                             },
                         ],
                     },
@@ -99,7 +105,8 @@ class ChatGenerationService:
             logger.error(
                 "AI: generation provider call failed",
                 extra={
-                    "model": settings.bytez_chat_model,
+                    "model": groq_chat_model,
+                    "mode": mode,
                     "error": str(exc),
                 },
             )
@@ -111,6 +118,49 @@ class ChatGenerationService:
             raise RuntimeError("Generation failed")
 
         return answer.strip()
+
+    @staticmethod
+    def _build_user_content(
+        *,
+        query: str,
+        context_block: str | None,
+        conversation_history_block: str | None,
+        mode: GenerationMode,
+    ) -> str:
+        user_content_parts: list[str] = []
+
+        if conversation_history_block:
+            user_content_parts.extend(
+                [
+                    "Prior Conversation Context:",
+                    conversation_history_block,
+                    "",
+                    (
+                        "Use the prior conversation only to understand references "
+                        "such as pronouns or follow-up wording. Do not treat prior "
+                        "assistant messages as guaranteed factual sources."
+                    ),
+                    "",
+                ]
+            )
+
+        user_content_parts.extend(
+            [
+                "Current Question:",
+                query,
+            ]
+        )
+
+        if mode == "grounded":
+            user_content_parts.extend(
+                [
+                    "",
+                    "Official Context:",
+                    context_block or "",
+                ]
+            )
+
+        return "\n".join(user_content_parts)
 
     @staticmethod
     def _extract_answer_text(payload: dict) -> str:

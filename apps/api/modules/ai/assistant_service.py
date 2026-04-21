@@ -258,7 +258,7 @@ class AssistantService:
         request_id: Optional[str],
         query: str,
     ) -> dict[str, Any]:
-        normalized_query = RetrievalService.normalize_query(query)
+        normalized_query = RetrievalService.normalize_assistant_query(query)
         generated_turn = await AIService.generate_assistant_turn(
             user_id=user_id,
             request_id=request_id,
@@ -363,7 +363,7 @@ class AssistantService:
         conversation_id: UUID,
         query: str,
     ) -> dict[str, Any]:
-        normalized_query = RetrievalService.normalize_query(query)
+        normalized_query = RetrievalService.normalize_assistant_query(query)
         pool = Database.get_pool()
 
         try:
@@ -726,7 +726,7 @@ class AssistantService:
 
     @staticmethod
     def _build_conversation_title(query: str) -> str:
-        normalized = RetrievalService.normalize_query(query)
+        normalized = RetrievalService.normalize_assistant_query(query)
         trimmed = normalized.rstrip("?.! ")
 
         if not trimmed:

@@ -4,7 +4,7 @@ Retrieval mechanics service for the
 UAF Smart E-Library & University Information Assistant.
 
 Responsibilities:
-- Normalize retrieval queries.
+- Normalize retrieval and assistant queries.
 - Generate query embeddings through the existing Bytez embedding client.
 - Execute pgvector similarity search through the retrieval RPC.
 - Return citation-ready chunk rows only.
@@ -32,11 +32,27 @@ class RetrievalService:
     def normalize_query(query: str) -> str:
         """
         Normalize user input into a retrieval-safe query string.
+        Strict version for retrieval-oriented flows.
         """
 
         normalized = re.sub(r"\s+", " ", query or "").strip()
 
         if len(normalized) < 3:
+            raise RuntimeError("Invalid input")
+
+        return normalized
+
+    @staticmethod
+    def normalize_assistant_query(query: str) -> str:
+        """
+        Normalize user input for assistant conversation flows.
+        Allows short conversational inputs like 'Hi' and 'Ok',
+        but still rejects empty or whitespace-only input.
+        """
+
+        normalized = re.sub(r"\s+", " ", query or "").strip()
+
+        if not normalized:
             raise RuntimeError("Invalid input")
 
         return normalized
