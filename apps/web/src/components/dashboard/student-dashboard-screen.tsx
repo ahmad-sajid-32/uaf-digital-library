@@ -98,23 +98,23 @@ function formatCount(value: number): string {
 function DashboardLoadingState(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-5">
-      <Skeleton className="h-44 rounded-[2rem]" />
+      <Skeleton className="h-44 rounded-4xl" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} className="h-36 rounded-[2rem]" />
+          <Skeleton key={index} className="h-36 rounded-4xl" />
         ))}
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
-        <Skeleton className="h-56 rounded-[2rem]" />
-        <Skeleton className="h-56 rounded-[2rem]" />
-        <Skeleton className="h-56 rounded-[2rem]" />
+        <Skeleton className="h-56 rounded-4xl" />
+        <Skeleton className="h-56 rounded-4xl" />
+        <Skeleton className="h-56 rounded-4xl" />
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
-        <Skeleton className="h-80 rounded-[2rem]" />
-        <Skeleton className="h-80 rounded-[2rem]" />
-        <Skeleton className="h-80 rounded-[2rem]" />
+        <Skeleton className="h-80 rounded-4xl" />
+        <Skeleton className="h-80 rounded-4xl" />
+        <Skeleton className="h-80 rounded-4xl" />
       </div>
-      <Skeleton className="h-72 rounded-[2rem]" />
+      <Skeleton className="h-72 rounded-4xl" />
     </div>
   );
 }
@@ -125,7 +125,7 @@ function DashboardFailureState(props: {
   onRetry: () => void | Promise<void>;
 }): React.JSX.Element {
   return (
-    <Card className="rounded-[2rem] border-destructive/20 bg-destructive/5 py-0 shadow-none">
+    <Card className="rounded-4xl border-destructive/20 bg-destructive/5 py-0 shadow-none">
       <CardContent className="flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-destructive">
@@ -181,7 +181,7 @@ function SummaryMetricCard(props: {
         : "border-primary/20 bg-primary/10 text-primary";
 
   return (
-    <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+    <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
       <CardContent className="flex h-full flex-col gap-5 px-5 py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -219,7 +219,7 @@ function SummaryMetricCard(props: {
 
 function QuietState(): React.JSX.Element {
   return (
-    <Card className="rounded-[2rem] border-emerald-500/20 bg-emerald-500/5 py-0 shadow-none">
+    <Card className="rounded-4xl border-emerald-500/20 bg-emerald-500/5 py-0 shadow-none">
       <CardContent className="px-6 py-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
@@ -258,7 +258,7 @@ function AttentionCard(props: {
   toneClassName?: string;
 }): React.JSX.Element {
   return (
-    <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+    <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
       <CardHeader className="gap-2 border-b border-border/60 px-5 py-5">
         <Badge
           variant="outline"
@@ -301,7 +301,7 @@ function PreviewSection(props: {
   hasItems: boolean;
 }): React.JSX.Element {
   return (
-    <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+    <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
       <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -327,7 +327,7 @@ function PreviewSection(props: {
         {props.hasItems ? (
           props.children
         ) : (
-          <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-background/55 px-4 py-8 text-center">
+          <div className="rounded-3xl border border-dashed border-border/70 bg-background/55 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-foreground">
               {props.emptyTitle}
             </p>
@@ -350,7 +350,7 @@ function ResultSummaryCard(props: {
 }): React.JSX.Element {
   if (!props.summary) {
     return (
-      <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+      <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
         <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             Result Overview
@@ -379,7 +379,7 @@ function ResultSummaryCard(props: {
   }
 
   return (
-    <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+    <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
       <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
           Result Overview
@@ -392,7 +392,7 @@ function ResultSummaryCard(props: {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 px-6 py-6 sm:grid-cols-3">
-        <div className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4">
+        <div className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             CGPA
           </p>
@@ -400,7 +400,7 @@ function ResultSummaryCard(props: {
             {props.summary.cgpa ?? "Not available"}
           </p>
         </div>
-        <div className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4">
+        <div className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             Latest Semester
           </p>
@@ -408,7 +408,7 @@ function ResultSummaryCard(props: {
             {props.summary.latest_semester_label ?? "Not available"}
           </p>
         </div>
-        <div className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4">
+        <div className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             Latest GPA
           </p>

@@ -1,0 +1,848 @@
+[
+  {
+    "id": "general_001",
+    "group": "general",
+    "query": "What is machine learning?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_002",
+    "group": "general",
+    "query": "What is AI?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_003",
+    "group": "general",
+    "query": "Explain database normalization",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_004",
+    "group": "general",
+    "query": "How does Python work?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_005",
+    "group": "general",
+    "query": "What is a computer network?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_006",
+    "group": "general",
+    "query": "What is cloud computing?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_007",
+    "group": "general",
+    "query": "Explain object oriented programming",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_008",
+    "group": "general",
+    "query": "What is cybersecurity?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_009",
+    "group": "general",
+    "query": "How do I write a document?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_010",
+    "group": "general",
+    "query": "What is a semester?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_011",
+    "group": "general",
+    "query": "How do I make a payment online?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_012",
+    "group": "general",
+    "query": "What is an application form?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_013",
+    "group": "general",
+    "query": "Explain the difference between frontend and backend",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_014",
+    "group": "general",
+    "query": "What is an API?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_015",
+    "group": "general",
+    "query": "How does the internet work?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_016",
+    "group": "general",
+    "query": "What is data privacy?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_017",
+    "group": "general",
+    "query": "Explain artificial neural networks",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_018",
+    "group": "general",
+    "query": "What is a search engine?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_019",
+    "group": "general",
+    "query": "How do I improve my study habits?",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "general_020",
+    "group": "general",
+    "query": "Explain plagiarism in simple words",
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "document_001",
+    "group": "document",
+    "query": "What is the semester freeze policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_002",
+    "group": "document",
+    "query": "Explain the university attendance rule",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_003",
+    "group": "document",
+    "query": "What is the UAF fee structure?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_004",
+    "group": "document",
+    "query": "What is the withdrawal policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_005",
+    "group": "document",
+    "query": "Show the official notice about admission eligibility",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_006",
+    "group": "document",
+    "query": "What are the library rules?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_007",
+    "group": "document",
+    "query": "What is the discipline policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_008",
+    "group": "document",
+    "query": "What is the hostel fee policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_009",
+    "group": "document",
+    "query": "What is the tuition fee refund rule?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_010",
+    "group": "document",
+    "query": "What is the admission merit policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_011",
+    "group": "document",
+    "query": "What does the official circular say about office timing?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_012",
+    "group": "document",
+    "query": "What is the registrar office notice?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_013",
+    "group": "document",
+    "query": "What does the controller of examinations notice say?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_014",
+    "group": "document",
+    "query": "What are the admission eligibility requirements?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_015",
+    "group": "document",
+    "query": "What are the entry test rules?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_016",
+    "group": "document",
+    "query": "What is the scholarship policy?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_017",
+    "group": "document",
+    "query": "What is the official university document about student discipline?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_018",
+    "group": "document",
+    "query": "What are the academic regulations for students?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_019",
+    "group": "document",
+    "query": "What is the official policy for semester withdrawal?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "document_020",
+    "group": "document",
+    "query": "What does the university document say about attendance shortage?",
+    "expected_intent": "document_question",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "app_help_001",
+    "group": "app_help",
+    "query": "How can you help me?",
+    "expected_intent": "assistant_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_002",
+    "group": "app_help",
+    "query": "What can you do?",
+    "expected_intent": "assistant_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_003",
+    "group": "app_help",
+    "query": "Where can I see my fines?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_004",
+    "group": "app_help",
+    "query": "Show my borrowed books",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_005",
+    "group": "app_help",
+    "query": "How do I use the catalog?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_006",
+    "group": "app_help",
+    "query": "Where is my result?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_007",
+    "group": "app_help",
+    "query": "How do I borrow a book?",
+    "expected_intent": "library_task_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_008",
+    "group": "app_help",
+    "query": "How does waiting list work?",
+    "expected_intent": "library_task_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_009",
+    "group": "app_help",
+    "query": "How do I return a book?",
+    "expected_intent": "library_task_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_010",
+    "group": "app_help",
+    "query": "How do I renew a book?",
+    "expected_intent": "library_task_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_011",
+    "group": "app_help",
+    "query": "Where can I check my queue?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_012",
+    "group": "app_help",
+    "query": "Where can I update my profile?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_013",
+    "group": "app_help",
+    "query": "How do I search for books?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_014",
+    "group": "app_help",
+    "query": "Where can I open the dashboard?",
+    "expected_intent": "app_navigation_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "app_help_015",
+    "group": "app_help",
+    "query": "How do I know if a book is ready for pickup?",
+    "expected_intent": "library_task_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "follow_up_001",
+    "group": "follow_up",
+    "query": "What documents are required for it?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_002",
+    "group": "follow_up",
+    "query": "What about that?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the attendance rule?"
+      },
+      {
+        "role": "assistant",
+        "content": "Attendance answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_003",
+    "group": "follow_up",
+    "query": "How about this?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the fee structure?"
+      },
+      {
+        "role": "assistant",
+        "content": "Fee answer.",
+        "intent_profile": "rag:fee_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 3,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_004",
+    "group": "follow_up",
+    "query": "Also explain that",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the withdrawal policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Withdrawal answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_005",
+    "group": "follow_up",
+    "query": "And what about those?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What are the admission eligibility requirements?"
+      },
+      {
+        "role": "assistant",
+        "content": "Admission answer.",
+        "intent_profile": "rag:admission_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 3,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_006",
+    "group": "follow_up",
+    "query": "What is the deadline for it?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_007",
+    "group": "follow_up",
+    "query": "Does it mention approval?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_008",
+    "group": "follow_up",
+    "query": "What does it say about fees?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the hostel fee policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hostel fee answer.",
+        "intent_profile": "rag:fee_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_009",
+    "group": "follow_up",
+    "query": "What about the same rule?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the attendance rule?"
+      },
+      {
+        "role": "assistant",
+        "content": "Attendance answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_010",
+    "group": "follow_up",
+    "query": "Then what should the student do?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the withdrawal policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Withdrawal answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "document_follow_up",
+    "expected_execution_mode": "rag_generation",
+    "must_call_retrieval": true
+  },
+  {
+    "id": "follow_up_011",
+    "group": "follow_up",
+    "query": "What documents are required for it?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Information not found in official documents.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": true,
+        "retrieved_chunks_count": 0,
+        "has_citations": false
+      }
+    ],
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "follow_up_012",
+    "group": "follow_up",
+    "query": "What documents are required for it?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is machine learning?"
+      },
+      {
+        "role": "assistant",
+        "content": "Machine learning is a way for computers to learn from data.",
+        "intent_profile": "general:general_question",
+        "fallback_used": false,
+        "retrieved_chunks_count": 0,
+        "has_citations": false
+      }
+    ],
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "follow_up_013",
+    "group": "follow_up",
+    "query": "What documents are required for it?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer."
+      }
+    ],
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "follow_up_014",
+    "group": "follow_up",
+    "query": "What is AI?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "general_question",
+    "expected_execution_mode": "general_generation",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "follow_up_015",
+    "group": "follow_up",
+    "query": "How can you help me?",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is the semester freeze policy?"
+      },
+      {
+        "role": "assistant",
+        "content": "Policy answer.",
+        "intent_profile": "rag:policy_lookup",
+        "fallback_used": false,
+        "retrieved_chunks_count": 2,
+        "has_citations": true
+      }
+    ],
+    "expected_intent": "assistant_help",
+    "expected_execution_mode": "app_help_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_001",
+    "group": "noisy",
+    "query": "What are tou/",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_002",
+    "group": "noisy",
+    "query": "what?",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_003",
+    "group": "noisy",
+    "query": "how?",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_004",
+    "group": "noisy",
+    "query": "tell me",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_005",
+    "group": "noisy",
+    "query": "explain",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_006",
+    "group": "noisy",
+    "query": "this?",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_007",
+    "group": "noisy",
+    "query": "that?",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_008",
+    "group": "noisy",
+    "query": "////",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_009",
+    "group": "noisy",
+    "query": "???",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  },
+  {
+    "id": "noisy_010",
+    "group": "noisy",
+    "query": "more",
+    "expected_intent": "clarification_needed",
+    "expected_execution_mode": "clarification_response",
+    "must_call_retrieval": false
+  }
+]

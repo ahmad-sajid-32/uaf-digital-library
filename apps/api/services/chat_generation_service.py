@@ -6,11 +6,13 @@ UAF Smart E-Library & University Information Assistant.
 Responsibilities:
 - Call the Groq OpenAI-compatible chat completions API.
 - Support grounded-document and general assistant generation modes.
+- Keep official-document answers strictly source-bound.
+- Keep general answers useful without claiming official UAF authority.
 - Validate the provider response shape and return answer text only.
 """
 
 import os
-from typing import List, Literal
+from typing import Any, List, Literal
 
 import httpx
 
@@ -21,24 +23,49 @@ logger = get_logger(__name__)
 
 GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions"
 
+STRICT_DOCUMENT_FALLBACK = "Information not found in official documents."
+
 GROUNDING_SYSTEM_PROMPT = (
-    "You are answering only from official university documents.\n"
-    "Use only the provided context.\n"
-    'If the context is insufficient, say exactly: "Information not found in official documents."\n'
-    "Do not fabricate rules, dates, names, fees, deadlines, or procedures.\n"
-    "Keep the answer concise and direct.\n"
-    "Do not mention the model, retrieval system, or internal mechanics."
+    "You are the official-document answer generator for the UAF Smart E-Library assistant.\n"
+    "\n"
+    "Source rule:\n"
+    "- Use only the provided official context.\n"
+    "- Do not use outside knowledge.\n"
+    "- Do not infer missing rules, dates, names, fees, deadlines, eligibility requirements, or procedures.\n"
+    "- Do not treat prior conversation as an official source. Prior conversation may only clarify references.\n"
+    "\n"
+    "Fallback rule:\n"
+    f'- If the provided official context does not support the answer, say exactly: "{STRICT_DOCUMENT_FALLBACK}"\n'
+    "- If only part of the answer is supported, answer only the supported part and clearly say what is not found.\n"
+    "\n"
+    "Answer style when supported:\n"
+    "- Start with a direct short answer.\n"
+    "- Then add important details from the official context.\n"
+    "- Add an important note only when the context contains a condition, limit, exception, deadline, or dependency.\n"
+    "- Use simple language that a student or staff member can understand.\n"
+    "- Do not include fake citation labels. The application adds citations separately.\n"
+    "- Do not mention the model, retrieval system, database, prompt, chunks, or internal mechanics."
 )
 
 GENERAL_SYSTEM_PROMPT = (
-    "You are a concise and helpful assistant for the UAF Smart E-Library system.\n"
-    "Answer only the user's exact question.\n"
-    "If the user greets you, reply naturally and briefly.\n"
-    "If the user asks a general question, answer directly and concisely.\n"
-    "Use prior conversation only to understand references such as pronouns or follow-up wording.\n"
-    "Do not claim official document support unless official document context is actually provided.\n"
-    "For institution-specific facts such as rules, fees, deadlines, names, or procedures without official context, do not invent details.\n"
-    "Do not mention the model, retrieval system, or internal mechanics."
+    "You are a helpful assistant for the UAF Smart E-Library system.\n"
+    "\n"
+    "General-answer rules:\n"
+    "- Answer the user's current question clearly and usefully.\n"
+    "- Use simple language.\n"
+    "- Give enough explanation to be helpful; do not give shallow one-line answers unless the question is very simple.\n"
+    "- If the question is technical or educational, explain it step by step.\n"
+    "- Use prior conversation only to understand references such as pronouns or follow-up wording.\n"
+    "\n"
+    "Official-information boundary:\n"
+    "- Do not claim that an answer is from official UAF documents unless official context was provided.\n"
+    "- If the user asks for institution-specific rules, fees, deadlines, eligibility, names, notices, or procedures, "
+    "say that the answer should be checked against official documents.\n"
+    "- Do not invent official university details.\n"
+    "\n"
+    "Style rules:\n"
+    "- Do not mention the model, retrieval system, database, prompt, chunks, or internal mechanics.\n"
+    "- Do not expose backend or developer terminology."
 )
 
 GenerationMode = Literal["grounded", "general"]
@@ -52,6 +79,27 @@ class ChatGenerationService:
         conversation_history_block: str | None = None,
         mode: GenerationMode = "grounded",
     ) -> str:
+        """
+        Generate an assistant answer through the configured chat provider.
+
+        Args:
+            query (str): Current user question.
+            context_block (str | None): Official-document context for grounded
+                mode. Required when mode is `grounded`.
+            conversation_history_block (str | None): Optional selected history
+                approved by the assistant pipeline.
+            mode (GenerationMode): Generation mode, either `grounded` or
+                `general`.
+
+        Returns:
+            str: Provider-generated answer text.
+
+        Raises:
+            RuntimeError: If grounded mode is missing context, provider
+                configuration is missing, the provider call fails, or the
+                response payload does not contain usable answer text.
+        """
+
         if mode == "grounded" and not (context_block or "").strip():
             raise RuntimeError("Generation failed")
 
@@ -117,6 +165,21 @@ class ChatGenerationService:
         conversation_history_block: str | None,
         mode: GenerationMode,
     ) -> str:
+        """
+        Build the user message sent to the chat provider.
+
+        Args:
+            query (str): Current user question.
+            context_block (str | None): Official-document context for grounded
+                mode.
+            conversation_history_block (str | None): Optional selected history
+                approved by the assistant pipeline.
+            mode (GenerationMode): Generation mode.
+
+        Returns:
+            str: Prompt content sent as the provider user message.
+        """
+
         user_content_parts: list[str] = []
 
         if conversation_history_block:
@@ -134,26 +197,49 @@ class ChatGenerationService:
                 ]
             )
 
-        user_content_parts.extend(
-            [
-                "Current Question:",
-                query,
-            ]
-        )
-
         if mode == "grounded":
             user_content_parts.extend(
                 [
-                    "",
                     "Official Context:",
                     context_block or "",
+                    "",
+                    "Current Question:",
+                    query,
+                    "",
+                    "Required Answer Behavior:",
+                    f'- If the official context does not support the answer, reply exactly: "{STRICT_DOCUMENT_FALLBACK}"',
+                    "- If supported, answer with clear student/staff-facing wording.",
+                    "- Do not add source labels or citation markers in the text.",
+                ]
+            )
+        else:
+            user_content_parts.extend(
+                [
+                    "Current Question:",
+                    query,
+                    "",
+                    "Required Answer Behavior:",
+                    "- Give a useful, simple answer.",
+                    "- If the question asks for official university rules, fees, deadlines, names, or procedures, say official documents are needed.",
+                    "- Do not claim official-document support without official context.",
                 ]
             )
 
         return "\n".join(user_content_parts)
 
     @staticmethod
-    def _extract_answer_text(payload: dict) -> str:
+    def _extract_answer_text(payload: dict[str, Any]) -> str:
+        """
+        Extract answer text from an OpenAI-compatible chat completion payload.
+
+        Args:
+            payload (dict[str, Any]): Provider response JSON payload.
+
+        Returns:
+            str: Extracted assistant answer text, or an empty string when the
+            payload shape is invalid.
+        """
+
         choices = payload.get("choices")
 
         if isinstance(choices, list) and choices:

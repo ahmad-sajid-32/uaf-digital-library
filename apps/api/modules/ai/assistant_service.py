@@ -5,7 +5,10 @@ Conversation orchestration service for the AI assistant module.
 Responsibilities:
 - Enforce authenticated owner access for assistant conversations.
 - Persist assistant conversations, messages, and citations in PostgreSQL.
-- Reuse the existing retrieval and grounded-generation stack for each turn.
+- Reuse the existing assistant pipeline for each turn.
+- Load recent conversation history with routing metadata so follow-up handling
+  can distinguish successful document-grounded answers from fallback/general
+  answers.
 - Keep route handlers thin and return normalized conversation/message payloads.
 """
 
@@ -509,12 +512,39 @@ class AssistantService:
         *,
         conversation_id: UUID,
     ) -> list[dict[str, Any]]:
+        """
+        Load recent messages with assistant-routing metadata.
+
+        The history selector needs more than raw text. It must know whether a
+        previous assistant answer was a successful document-grounded answer,
+        whether fallback was used, and whether citations exist.
+
+        Args:
+            connection (asyncpg.Connection): Active database connection.
+            conversation_id (UUID): Conversation ID to load history from.
+
+        Returns:
+            list[dict[str, Any]]: Chronological recent messages enriched with
+            metadata used only by the backend assistant pipeline.
+        """
+
         rows = await connection.fetch(
             """
-            select role::text as role, content
-            from library.ai_messages
-            where conversation_id = $1::uuid
-            order by created_at desc, id desc
+            select
+                m.id,
+                m.role::text as role,
+                m.content,
+                m.intent_profile,
+                m.fallback_used,
+                m.retrieved_chunks_count,
+                exists (
+                    select 1
+                    from library.ai_message_citations c
+                    where c.message_id = m.id
+                ) as has_citations
+            from library.ai_messages m
+            where m.conversation_id = $1::uuid
+            order by m.created_at desc, m.id desc
             limit $2::integer
             """,
             conversation_id,
