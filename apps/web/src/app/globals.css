@@ -4,75 +4,132 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+
 :root {
-  --background: 120 12.5% 96.9%;
-  --foreground: 222.2 47.4% 11.2%;
+  /* --- Library Light Mode (Clean & Trustworthy) --- */
+  --background: 210 40% 98%; 
+  --foreground: 222 47% 11%;
+
+  /* Glassmorphic Base for Light Mode */
   --card: 0 0% 100%;
-  --card-foreground: 222.2 47.4% 11.2%;
+  --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222.2 47.4% 11.2%;
-  --primary: 267 75% 31%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 98%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 98%;
+  --popover-foreground: 222 47% 11%;
+
+  /* Primary: Deep Academic Blue (Librarian's Authority) */
+  --primary: 221 83% 45%; 
+  --primary-foreground: 210 40% 98%;
+
+  /* Secondary: Soft Slate (For background elements) */
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11.2%;
+
+  --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 268 44% 92%;
-  --accent-foreground: 267 40% 20%;
+
+  /* Accent: Emerald (For 'Available' books and 'Success' actions) */
+  --accent: 142 70% 95%;
+  --accent-foreground: 142 76% 20%;
+
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 267 75% 31%;
+  --ring: 221 83% 45%;
+
+  /* Status Colors */
   --success: 142.1 76.2% 36.3%;
   --success-foreground: 0 0% 100%;
-  --warning: 37.7 92.1% 50.2%;
+  --warning: 38 92% 50%;
   --warning-foreground: 0 0% 10%;
-  --danger: 0 72.2% 50.6%;
+  --danger: 0 84.2% 60.2%;
   --danger-foreground: 0 0% 100%;
+
+  /* Sidebar */
   --sidebar: 210 40% 98%;
   --sidebar-foreground: 222.2 47.4% 11.2%;
-  --sidebar-accent: 268 46% 90%;
-  --sidebar-accent-foreground: 267 40% 20%;
+  --sidebar-accent: 221 83% 93%;
+  --sidebar-accent-foreground: 221 83% 30%;
   --sidebar-border: 214.3 31.8% 91.4%;
-  --sidebar-ring: 267 75% 31%;
+  --sidebar-ring: 221 83% 45%;
+
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 47.4% 11.2%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 47.4% 11.2%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 267 75% 45%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 267 28% 20%;
-  --accent-foreground: 210 40% 98%;
-  --border: 215.3 25% 26.7%;
-  --input: 215.3 25% 26.7%;
-  --ring: 258.3 89.5% 66.3%;
+  /* --- Library Dark Mode (Sleek Slate - No "Daal Chawal") --- */
+  --background: 224 71% 4%; /* Deep Midnight */
+  --foreground: 213 31% 91%;
+
+  /* Perfect Glassmorphism Base */
+  --card: 224 71% 7% / 0.8; /* Added 80% opacity for blur effect */
+  --card-foreground: 213 31% 91%;
+  --popover: 224 71% 6%;
+  --popover-foreground: 213 31% 91%;
+
+  /* Primary: Vibrant Indigo-Blue (Night-friendly) */
+  --primary: 217 91% 60%;
+  --primary-foreground: 224 71% 4%;
+
+  --secondary: 222 47% 12%;
+  --secondary-foreground: 213 31% 91%;
+
+  --muted: 222 47% 12%;
+  --muted-foreground: 215 20% 65%;
+
+  /* Accent: Subtle Emerald Glow */
+  --accent: 142 70% 15%;
+  --accent-foreground: 142 70% 60%;
+
+  --border: 217 32% 17%;
+  --input: 217 32% 17%;
+  --ring: 224 76% 48%;
+
+  /* Dark Status Colors */
   --success: 142.1 70.6% 45.3%;
-  --success-foreground: 0 0% 10%;
-  --warning: 43.3 96.4% 56.3%;
-  --warning-foreground: 0 0% 10%;
+  --success-foreground: 144 61% 10%;
+  --warning: 43 96% 56%;
+  --warning-foreground: 48 96% 10%;
   --danger: 0 84.2% 60.2%;
   --danger-foreground: 0 0% 100%;
-  --sidebar: 222.2 47.4% 11.2%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-accent: 267 30% 22%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 215.3 25% 26.7%;
-  --sidebar-ring: 258.3 89.5% 66.3%;
+
+  /* Sidebar Dark */
+  --sidebar: 224 71% 3%;
+  --sidebar-foreground: 213 31% 91%;
+  --sidebar-accent: 217 91% 15%;
+  --sidebar-accent-foreground: 217 91% 70%;
+  --sidebar-border: 217 32% 15%;
+  --sidebar-ring: 224 76% 48%;
 }
 
 html {
   color-scheme: light;
   scrollbar-color: hsl(var(--primary)) hsl(var(--background));
   scrollbar-width: thin;
+  font-size: 16px;
+}
+
+body {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+p {
+  font-size: 1.0625rem;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.75rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+h4 {
+  font-size: 1.25rem;
 }
 
 html.dark {
@@ -237,4 +294,75 @@ body {
     -5px 0 0 hsl(var(--accent)),
     5px 0 0 hsl(var(--accent));
   color: hsl(var(--accent-foreground));
+}
+
+/* Glassmorphic Effects for Titles and Headers */
+.page-title-glass,
+.header-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1.75rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dark .page-title-glass,
+.dark .header-glass {
+  background: rgba(30, 30, 40, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Card header with glass effect */
+.card-header-glass {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.dark .card-header-glass {
+  background: rgba(30, 30, 40, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Global text size increases for better readability */
+.text-page-title {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .text-page-title {
+    font-size: 2.5rem;
+  }
+}
+
+.text-section-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .text-section-title {
+    font-size: 1.75rem;
+  }
+}
+
+.text-dialog-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .text-dialog-title {
+    font-size: 1.75rem;
+  }
 }

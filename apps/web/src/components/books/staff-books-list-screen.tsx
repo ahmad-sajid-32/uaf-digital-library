@@ -239,7 +239,7 @@ function StaffBooksTable(props: {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="font-display text-2xl font-black tracking-tight">
+              <CardTitle className="text-section-title font-display font-black tracking-tight">
                 Staff Catalog Directory
               </CardTitle>
               <Badge variant="secondary" className="rounded-full">

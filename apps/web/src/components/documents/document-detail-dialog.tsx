@@ -471,7 +471,7 @@ export function DocumentDetailDialog(props: {
       <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-4xl xl:min-w-6xl overflow-y-auto rounded-3xl border-border/70 p-0">
         <div className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6 lg:px-8 lg:pb-8 lg:pt-8">
           <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="font-display text-2xl font-black tracking-tight sm:text-3xl">
+            <DialogTitle className="text-dialog-title font-display font-black tracking-tight sm:text-3xl">
               Document Detail
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">

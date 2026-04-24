@@ -62,7 +62,7 @@ export function SelfDeleteAccountDialog({
                 Irreversible Action
               </p>
             </div>
-            <DialogTitle className="font-display text-2xl font-black tracking-tight">
+            <DialogTitle className="text-dialog-title font-display font-black tracking-tight">
               Delete Your Account
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">
