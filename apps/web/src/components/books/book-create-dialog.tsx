@@ -173,7 +173,7 @@ export function BookCreateDialog({
       <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-4xl overflow-y-auto rounded-3xl border-border/70 p-0">
         <div className="px-6 pb-6 pt-6">
           <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="text-dialog-title font-display font-black tracking-tight">
+            <DialogTitle className="font-display text-2xl font-black tracking-tight">
               Add Book
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">
@@ -189,7 +189,7 @@ export function BookCreateDialog({
               <CardHeader className="px-5 py-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-2">
-                    <CardTitle className="text-dialog-title font-display font-black tracking-tight">
+                    <CardTitle className="font-display text-2xl font-black tracking-tight">
                       New Catalog Record
                     </CardTitle>
                     <CardDescription className="px-0 text-sm leading-6">

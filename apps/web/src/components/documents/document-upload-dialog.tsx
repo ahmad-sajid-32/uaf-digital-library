@@ -150,7 +150,7 @@ export function DocumentUploadDialog(props: {
       <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-3xl overflow-y-auto rounded-3xl border-border/70 p-0">
         <div className="px-5 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="text-dialog-title font-display font-black tracking-tight sm:text-3xl">
+            <DialogTitle className="font-display text-2xl font-black tracking-tight sm:text-3xl">
               Upload Official Document
             </DialogTitle>
             <DialogDescription className="max-w-3xl text-sm leading-6">

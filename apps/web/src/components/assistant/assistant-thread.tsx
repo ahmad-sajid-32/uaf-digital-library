@@ -113,7 +113,7 @@ export function AssistantThread({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border/50 px-4 py-4 sm:px-6">
-        <div className="page-title-glass flex items-start gap-3">
+        <div className="flex items-start gap-3">
           <Button
             type="button"
             variant="ghost"
@@ -126,7 +126,7 @@ export function AssistantThread({
           </Button>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-semibold text-foreground sm:text-xl font-display">
+            <p className="truncate text-base font-semibold text-foreground sm:text-lg">
               {activeConversation?.title ?? "New chat"}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

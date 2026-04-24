@@ -382,7 +382,7 @@ export function AdminUserEditDialog({
       <DialogContent className="max-h-[94vh] max-w-3xl overflow-y-auto rounded-[1.75rem] border-border/70 p-0">
         <div className="px-6 pb-6 pt-6">
           <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="text-dialog-title font-display font-black tracking-tight">
+            <DialogTitle className="font-display text-2xl font-black tracking-tight">
               Edit User
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">

@@ -89,7 +89,7 @@ export function StudentBorrowActionDialog({
       >
         <div className="space-y-5 px-6 py-6">
           <DialogHeader className="space-y-3 text-left">
-            <DialogTitle className="text-dialog-title font-display font-black tracking-tight">
+            <DialogTitle className="font-display text-2xl font-black tracking-tight">
               {dialogCopy.title}
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">

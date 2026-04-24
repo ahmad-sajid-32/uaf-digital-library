@@ -241,7 +241,7 @@ function AdminUsersTabTable(props: {
       <CardHeader className="gap-4 border-b border-border/60 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
-            <CardTitle className="text-section-title font-display font-black tracking-tight">
+            <CardTitle className="font-display text-2xl font-black tracking-tight">
               {copy.title}
             </CardTitle>
             <CardDescription className="px-0 text-sm leading-6">
