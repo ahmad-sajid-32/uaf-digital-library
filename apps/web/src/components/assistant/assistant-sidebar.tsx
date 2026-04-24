@@ -284,7 +284,7 @@ export function AssistantSidebar({
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Start with one clear question. The assistant will store the
-                conversation after the first grounded turn completes.
+                conversation after the first completed answer.
               </p>
             </div>
           </div>

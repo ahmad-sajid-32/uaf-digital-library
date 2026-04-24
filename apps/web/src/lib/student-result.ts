@@ -161,7 +161,7 @@ export function getStudentResultCalculationPresentation(
     case "calculated":
       return {
         label: "Calculated",
-        helper: "GPA and CGPA values were calculated successfully from the backend result payload.",
+        helper: "GPA and CGPA are available.",
         toneClassName: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700",
       };
     case "partial":
@@ -173,14 +173,13 @@ export function getStudentResultCalculationPresentation(
     case "unavailable":
       return {
         label: "Unavailable",
-        helper: "The backend could not produce a GPA summary for this result payload.",
+        helper: "GPA summary is not available for this result.",
         toneClassName: "border-border bg-muted text-muted-foreground",
       };
     default:
       return {
         label: formatStudentResultLabel(status),
-        helper:
-          "This academic calculation status came directly from the backend payload and is shown without frontend reinterpretation.",
+        helper: "Calculation status from the result record.",
         toneClassName: "border-border bg-muted text-muted-foreground",
       };
   }

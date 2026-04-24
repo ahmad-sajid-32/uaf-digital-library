@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
-import {
-  GraduationCap,
-  LoaderCircle,
-  RefreshCw,
-} from "lucide-react";
+import { GraduationCap, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { PageContainer } from "@/components/app-shell";
 import { AcademicResultViewer } from "@/components/result/academic-result-viewer";
@@ -29,12 +25,10 @@ function StudentResultEmptyState() {
             No Result Available
           </p>
           <p className="text-2xl font-black tracking-tight text-foreground">
-            No protected academic result payload is available right now.
+            No academic result is available right now.
           </p>
           <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-            This route only shows the authenticated student result. It does not
-            fall back to public registration-number lookup or invent missing
-            academic values.
+            Your result will appear here when it is available.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -63,15 +57,9 @@ export function StudentResultScreen() {
     <PageContainer
       eyebrow="Student Result"
       title="Result"
-      description="Review your protected academic result, semester summaries, and GPA/CGPA output without exposing public lookup or client-side grade recalculation."
+      description="Review your academic result, semester summaries, and GPA/CGPA."
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="rounded-full">
-            Protected
-          </Badge>
-          <Badge variant="outline" className="rounded-full">
-            Read only
-          </Badge>
           <Badge variant="outline" className="rounded-full">
             {result?.gpa_summary.semesters.length ?? 0} semester
             {(result?.gpa_summary.semesters.length ?? 0) === 1 ? "" : "s"}
@@ -98,7 +86,7 @@ export function StudentResultScreen() {
       <div className="flex flex-1 flex-col gap-6">
         {resultState.error && !resultState.hasData ? (
           <ResultFailureState
-            heading="Unable to load your protected result."
+            heading="Unable to load your result."
             message={resultState.error}
             onRetry={resultState.retry}
           />
@@ -113,7 +101,7 @@ export function StudentResultScreen() {
           <>
             {resultState.error && resultState.hasData ? (
               <ResultFailureState
-                heading="Protected result refresh failed."
+                heading="Result refresh failed."
                 hasStaleData={resultState.hasStaleData}
                 message={resultState.error}
                 onRetry={resultState.retry}
@@ -134,9 +122,9 @@ export function StudentResultScreen() {
               <AcademicResultViewer
                 result={resultPayload}
                 gpaSummary={gpaSummary}
-                scopeBadgeLabel="Protected result"
-                registrationHelperText="Public registration-number lookup is intentionally not exposed here."
-                summaryScopeText="This screen shows your protected academic record without client-side recomputation."
+                scopeBadgeLabel="Student result"
+                registrationHelperText="Registration number from your result record."
+                summaryScopeText="Your academic record and GPA summary."
               />
             )}
           </>

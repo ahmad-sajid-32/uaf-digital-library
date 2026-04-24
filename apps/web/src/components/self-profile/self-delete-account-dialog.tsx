@@ -66,9 +66,7 @@ export function SelfDeleteAccountDialog({
               Delete Your Account
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">
-              This sends a real destructive request to the backend. Your account
-              and dependent library data will be removed according to the
-              current backend contract.
+              This permanently deletes your account and related library data.
             </DialogDescription>
           </DialogHeader>
 

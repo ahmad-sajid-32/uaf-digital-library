@@ -60,8 +60,8 @@ export function SelfProfileForm({
             Profile Details
           </CardTitle>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            The current self-service contract only allows full-name updates.
-            Email, role, and account identity remain display-only here.
+            You can update your full name here. Email, role, and account ID are
+            read-only.
           </p>
         </div>
       </CardHeader>
@@ -125,8 +125,7 @@ export function SelfProfileForm({
               placeholder="Enter your full name"
             />
             <p className="text-sm leading-6 text-muted-foreground">
-              The backend currently accepts only `full_name` in this self-service
-              profile update contract.
+              Only full name can be edited on this screen.
             </p>
           </div>
 

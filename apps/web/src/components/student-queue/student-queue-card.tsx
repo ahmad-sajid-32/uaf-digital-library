@@ -75,13 +75,13 @@ export function StudentQueueCard({
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              Queue Status
+              Waiting List Status
             </p>
             <p className="mt-2 text-sm font-semibold text-foreground">
               {statusPresentation.label}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Status text comes directly from the backend queue state.
+              This shows the current status of your waiting-list entry.
             </p>
           </div>
 
@@ -93,8 +93,7 @@ export function StudentQueueCard({
               {formatStudentQueueDateTime(item.notified_at)}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Notification timestamps are shown only when the backend returns
-              them.
+              This appears when a pickup notification has been sent.
             </p>
           </div>
 
@@ -106,8 +105,7 @@ export function StudentQueueCard({
               {formatStudentQueueDateTime(item.hold_expires_at)}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Hold-expiry behavior stays backend-owned. This screen only shows
-              the returned timestamp.
+              If a pickup hold is active, the expiry time is shown here.
             </p>
           </div>
 
@@ -124,8 +122,8 @@ export function StudentQueueCard({
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
                   {canCancel
-                    ? "This status can still be cancelled through the real backend route."
-                    : "This queue status is visible for truthfulness, but it no longer supports cancellation."}
+                    ? "You can still cancel this entry."
+                    : "This entry is shown for record only and can no longer be cancelled."}
                 </p>
               </div>
             </div>
@@ -163,8 +161,8 @@ export function StudentQueueCard({
 
           {item.status === "notified" ? (
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
-              This entry is in a notified hold state. The backend still owns the
-              hold-expiry deadline and any next queue promotion after cancellation.
+              This book is ready for pickup. Collect it before the hold expiry
+              time.
             </div>
           ) : null}
         </div>

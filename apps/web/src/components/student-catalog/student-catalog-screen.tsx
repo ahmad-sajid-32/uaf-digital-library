@@ -36,6 +36,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { RowsControl } from "@/components/ui/rows-control";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import {
   Select,
@@ -54,7 +56,14 @@ import {
   type BookStatus,
   type PublicCatalogBookListItem,
 } from "@/lib/books";
+import { canCancelStudentQueueEntry } from "@/lib/student-queue";
 import { cn } from "@/lib/utils";
+
+const CATALOG_PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+
+function normalizeBookId(value: string | null | undefined): string {
+  return String(value ?? "").trim().toLowerCase();
+}
 
 function CatalogLoadingState(): React.JSX.Element {
   return (
@@ -88,8 +97,8 @@ function CatalogFailureState(props: {
           </p>
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
-              The currently shown catalog data may be stale. Retry to fetch the
-              latest public rows.
+              The current catalog list may be out of date. Retry to load the
+              latest books.
             </p>
           ) : null}
         </div>
@@ -172,6 +181,11 @@ function StudentCatalogListCard(props: {
   isEmpty: boolean;
   isFilterEmpty: boolean;
   items: PublicCatalogBookListItem[];
+  pagedItems: PublicCatalogBookListItem[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  pageSizeOptions: readonly number[];
   selectedBookId: string | null;
   statusOptions: readonly BookStatus[];
   categoryOptions: readonly BookCategory[];
@@ -180,16 +194,18 @@ function StudentCatalogListCard(props: {
   onStatusChange: (value: BookStatus | "all") => void;
   onCategoryChange: (value: BookCategory | "all") => void;
   onResetFilters: () => void;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   onLoadMore: () => void | Promise<void>;
 }): React.JSX.Element {
   const emptyTitle = props.isEmpty
-    ? "No public catalog rows are available yet."
-    : "No loaded books match the current filters.";
+    ? "No books are available yet."
+    : "No books match the current filters.";
   const emptyMessage = props.isEmpty
-    ? "When catalog records are available, they will appear here for student discovery."
+    ? "Books will appear here when catalog records are added."
     : props.hasMore
-      ? "The search and filters only inspect rows already loaded into this screen. Change the filters or load more rows."
-      : "Change the search text, category filter, or status filter to find matching rows.";
+      ? "Search and filters apply to books currently loaded on this page. Change filters or load more books."
+      : "Change the search text, category filter, or status filter to find matching books.";
 
   return (
     <Card className="rounded-3xl border-border/60 bg-card/95 py-0 shadow-none">
@@ -200,17 +216,9 @@ function StudentCatalogListCard(props: {
               <CardTitle className="font-display text-2xl font-black tracking-tight">
                 Student Catalog
               </CardTitle>
-              <Badge variant="secondary" className="rounded-full">
-                {props.filteredCount} shown
-              </Badge>
-              <Badge variant="outline" className="rounded-full">
-                {props.totalLoadedItems} loaded
-              </Badge>
             </div>
             <CardDescription className="max-w-2xl px-0 text-sm leading-6">
-              Browse the currently loaded public catalog rows, then inspect one
-              selected book in detail. Search and filters apply only to rows that
-              are already loaded here.
+              Browse the catalog, then open one selected book for full details.
             </CardDescription>
           </div>
 
@@ -235,63 +243,59 @@ function StudentCatalogListCard(props: {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(12rem,0.8fr)_minmax(12rem,0.8fr)]">
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={props.searchTerm}
-                onChange={(event) => {
-                  props.onSearchChange(event.target.value);
-                }}
-                placeholder="Search the loaded rows by title, author, category, or status"
-                className="h-11 rounded-xl border-border/70 bg-background pl-9"
-                aria-label="Search the loaded catalog rows"
-              />
-            </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-              This filter does not search the whole backend catalog. Use Load More
-              to widen what the current screen can inspect.
-            </p>
+        <div className="grid gap-3">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={props.searchTerm}
+              onChange={(event) => {
+                props.onSearchChange(event.target.value);
+              }}
+              placeholder="Search books by title, author, category, or status"
+              className="h-11 w-full rounded-xl border-border/70 bg-background pl-9"
+              aria-label="Search catalog books"
+            />
           </div>
 
-          <Select
-            value={props.statusFilter}
-            onValueChange={(value) => {
-              props.onStatusChange(value as BookStatus | "all");
-            }}
-          >
-            <SelectTrigger className="h-11 rounded-xl border-border/70 bg-background">
-              <SelectValue placeholder="Status filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {props.statusOptions.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status.replace(/_/g, " ")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              value={props.statusFilter}
+              onValueChange={(value) => {
+                props.onStatusChange(value as BookStatus | "all");
+              }}
+            >
+              <SelectTrigger className="h-11 w-full rounded-xl border-border/70 bg-background">
+                <SelectValue placeholder="Status filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {props.statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select
-            value={props.categoryFilter}
-            onValueChange={(value) => {
-              props.onCategoryChange(value as BookCategory | "all");
-            }}
-          >
-            <SelectTrigger className="h-11 rounded-xl border-border/70 bg-background">
-              <SelectValue placeholder="Category filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {props.categoryOptions.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {getBookCategoryLabel(category)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={props.categoryFilter}
+              onValueChange={(value) => {
+                props.onCategoryChange(value as BookCategory | "all");
+              }}
+            >
+              <SelectTrigger className="h-11 w-full rounded-xl border-border/70 bg-background">
+                <SelectValue placeholder="Category filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {props.categoryOptions.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {getBookCategoryLabel(category)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
 
@@ -316,7 +320,7 @@ function StudentCatalogListCard(props: {
           </div>
         ) : (
           <div className="grid gap-3">
-            {props.items.map((item) => (
+            {props.pagedItems.map((item) => (
               <CatalogRowButton
                 key={item.id}
                 item={item}
@@ -345,41 +349,49 @@ function StudentCatalogListCard(props: {
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border/70 bg-background/75 px-4 py-4">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">
-              {props.hasMore
-                ? "More catalog rows are available."
-                : "All currently reachable rows are already loaded."}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {props.hasMore
-                ? "Load more when you need a wider discovery set. The current filters only inspect rows already loaded here."
-                : "This screen stops loading more rows once the cursor sequence is exhausted."}
-            </p>
-          </div>
+        {!props.loading && !props.isEmpty && !props.isFilterEmpty ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border/70 bg-background/75 px-4 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <RowsControl
+                value={props.pageSize}
+                options={props.pageSizeOptions}
+                onValueChange={props.onPageSizeChange}
+                label="Rows"
+              />
+            </div>
 
-          <Button
-            type="button"
-            className="gap-2 rounded-xl"
-            onClick={() => {
-              void props.onLoadMore();
-            }}
-            disabled={!props.hasMore || props.loadingMore}
-          >
-            {props.loadingMore ? (
-              <>
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <LibraryBig className="h-4 w-4" />
-                Load More
-              </>
-            )}
-          </Button>
-        </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <PaginationControl
+                page={props.page}
+                totalPages={props.totalPages}
+                onPageChange={props.onPageChange}
+              />
+              {props.hasMore ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 rounded-xl"
+                  onClick={() => {
+                    void props.onLoadMore();
+                  }}
+                  disabled={props.loadingMore}
+                >
+                  {props.loadingMore ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <LibraryBig className="h-4 w-4" />
+                      Load More
+                    </>
+                  )}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -387,16 +399,125 @@ function StudentCatalogListCard(props: {
 
 export function StudentCatalogScreen(): React.JSX.Element {
   const catalog = useStudentCatalog();
-  const studentBorrows = useStudentBorrows();
-  const studentQueue = useStudentQueue();
+  const studentBorrows = useStudentBorrows({
+    autoLoad: true,
+  });
+  const studentQueue = useStudentQueue({
+    autoLoad: true,
+  });
   const borrowBook = studentBorrows.borrowAction.submit;
   const clearBorrowError = studentBorrows.borrowAction.clearError;
   const clearQueueError = studentQueue.joinAction.clearError;
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState<number>(20);
+  const [optimisticQueuedBookIds, setOptimisticQueuedBookIds] =
+    React.useState<Set<string>>(() => new Set());
 
   React.useEffect(() => {
     clearBorrowError();
     clearQueueError();
   }, [catalog.selectedBookId, clearBorrowError, clearQueueError]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [catalog.searchTerm, catalog.statusFilter, catalog.categoryFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(catalog.filteredCount / pageSize));
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pagedItems = React.useMemo(
+    () => catalog.items.slice(startIndex, endIndex),
+    [catalog.items, startIndex, endIndex],
+  );
+  const isSelectedBookAlreadyQueued = React.useMemo(() => {
+    const normalizedSelectedBookId = normalizeBookId(catalog.selectedBookId);
+
+    if (!normalizedSelectedBookId) {
+      return false;
+    }
+
+    if (optimisticQueuedBookIds.has(normalizedSelectedBookId)) {
+      return true;
+    }
+
+    return studentQueue.items.some((entry) => {
+      const normalizedEntryBookId = normalizeBookId(entry.book_id);
+
+      return (
+        normalizedEntryBookId === normalizedSelectedBookId
+        && canCancelStudentQueueEntry(entry.status)
+      );
+    });
+  }, [catalog.selectedBookId, optimisticQueuedBookIds, studentQueue.items]);
+
+  const isSelectedBookReadyForPickup = React.useMemo(() => {
+    const normalizedSelectedBookId = normalizeBookId(catalog.selectedBookId);
+
+    if (!normalizedSelectedBookId) {
+      return false;
+    }
+
+    return studentQueue.items.some((entry) => {
+      const normalizedEntryBookId = normalizeBookId(entry.book_id);
+      const normalizedEntryStatus = String(entry.status).trim().toLowerCase();
+
+      return (
+        normalizedEntryBookId === normalizedSelectedBookId
+        && normalizedEntryStatus === "notified"
+      );
+    });
+  }, [catalog.selectedBookId, studentQueue.items]);
+
+  const isSelectedBookAlreadyBorrowed = React.useMemo(() => {
+    const normalizedSelectedBookId = normalizeBookId(catalog.selectedBookId);
+
+    if (!normalizedSelectedBookId) {
+      return false;
+    }
+
+    return studentBorrows.items.some((entry) => {
+      const normalizedBorrowBookId = normalizeBookId(entry.book_id);
+
+      return normalizedBorrowBookId === normalizedSelectedBookId;
+    });
+  }, [catalog.selectedBookId, studentBorrows.items]);
+
+  React.useEffect(() => {
+    if (studentQueue.status !== "success") {
+      return;
+    }
+
+    setOptimisticQueuedBookIds((current) => {
+      if (current.size === 0) {
+        return current;
+      }
+
+      const activeIds = new Set(
+        studentQueue.items
+          .filter((entry) => canCancelStudentQueueEntry(entry.status))
+          .map((entry) => normalizeBookId(entry.book_id)),
+      );
+      let changed = false;
+      const next = new Set<string>();
+
+      current.forEach((bookId) => {
+        if (activeIds.has(bookId)) {
+          next.add(bookId);
+        } else {
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [studentQueue.items, studentQueue.status]);
 
   const handleBorrowFromSelectedBook = React.useCallback(
     async (bookId: string) => {
@@ -416,23 +537,37 @@ export function StudentCatalogScreen(): React.JSX.Element {
     async (bookId: string) => {
       return studentQueue.joinAction.submit(bookId, {
         onSuccess: async () => {
-          await Promise.allSettled([catalog.selectedBookQueue.retry()]);
+          const normalizedBookId = normalizeBookId(bookId);
+
+          if (normalizedBookId) {
+            setOptimisticQueuedBookIds((current) => {
+              if (current.has(normalizedBookId)) {
+                return current;
+              }
+
+              const next = new Set(current);
+              next.add(normalizedBookId);
+              return next;
+            });
+          }
+
+          await Promise.allSettled([
+            catalog.selectedBookQueue.retry(),
+            studentQueue.refresh(),
+          ]);
         },
       });
     },
-    [catalog.selectedBookQueue, studentQueue.joinAction],
+    [catalog.selectedBookQueue, studentQueue],
   );
 
   return (
     <PageContainer
       eyebrow="Student Discovery"
       title="Catalog"
-      description="Browse the public catalog, inspect one selected book, borrow from the correct selected-book context, and read queue pressure without copying staff inventory behavior."
+      description="Browse books, open details, borrow available books, and join the waiting list for unavailable books."
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="rounded-full">
-            {catalog.totalLoadedItems} loaded
-          </Badge>
           <Button
             type="button"
             variant="outline"
@@ -473,7 +608,7 @@ export function StudentCatalogScreen(): React.JSX.Element {
               />
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(24rem,0.92fr)]">
+            <div className="grid gap-6 xl:grid-cols-[minmax(18rem,0.45fr)_minmax(0,1.55fr)]">
               <ScrollReveal direction="up" delayMs={40}>
                 <StudentCatalogListCard
                   loading={catalog.loading}
@@ -490,6 +625,11 @@ export function StudentCatalogScreen(): React.JSX.Element {
                   isEmpty={catalog.isEmpty}
                   isFilterEmpty={catalog.isFilterEmpty}
                   items={catalog.items}
+                  pagedItems={pagedItems}
+                  page={page}
+                  pageSize={pageSize}
+                  totalPages={totalPages}
+                  pageSizeOptions={CATALOG_PAGE_SIZE_OPTIONS}
                   selectedBookId={catalog.selectedBookId}
                   statusOptions={catalog.statusOptions}
                   categoryOptions={catalog.categoryOptions}
@@ -498,6 +638,11 @@ export function StudentCatalogScreen(): React.JSX.Element {
                   onStatusChange={catalog.setStatusFilter}
                   onCategoryChange={catalog.setCategoryFilter}
                   onResetFilters={catalog.resetFilters}
+                  onPageChange={setPage}
+                  onPageSizeChange={(nextPageSize) => {
+                    setPageSize(nextPageSize);
+                    setPage(1);
+                  }}
                   onLoadMore={catalog.loadMore}
                 />
               </ScrollReveal>
@@ -519,6 +664,9 @@ export function StudentCatalogScreen(): React.JSX.Element {
                     clearError: studentQueue.joinAction.clearError,
                     submit: handleJoinQueueFromSelectedBook,
                   }}
+                  isSelectedBookAlreadyQueued={isSelectedBookAlreadyQueued}
+                  isSelectedBookAlreadyBorrowed={isSelectedBookAlreadyBorrowed}
+                  isSelectedBookReadyForPickup={isSelectedBookReadyForPickup}
                   onClearSelection={catalog.clearSelectedBook}
                 />
               </ScrollReveal>

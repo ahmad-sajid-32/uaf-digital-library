@@ -48,7 +48,7 @@ export function AssistantComposer({
                 className="max-h-64 overflow-y-auto resize-none rounded-none border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
                 placeholder={
                   isDraftConversation
-                    ? "Ask about an official policy, fee, admission requirement, or another university document topic..."
+                    ? "Ask a general question or ask about official university documents..."
                     : "Ask a follow-up question for this conversation..."
                 }
                 rows={4}

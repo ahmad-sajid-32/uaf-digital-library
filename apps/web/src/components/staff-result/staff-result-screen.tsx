@@ -29,8 +29,7 @@ function StaffResultIdleState() {
             Enter a registration number to fetch an academic result.
           </p>
           <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-            This tool uses the public registration-number lookup contract from a
-            protected shell route. It does not preload a result record.
+            Search by registration number to load a student result.
           </p>
         </div>
       </CardContent>
@@ -50,11 +49,10 @@ function StaffResultEmptyState() {
             No Result Content
           </p>
           <p className="text-2xl font-black tracking-tight text-foreground">
-            The lookup returned no usable academic result payload.
+            No academic result was found.
           </p>
           <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-            The screen preserves sparse or empty result truth instead of
-            fabricating missing GPA or transcript values.
+            Check the registration number and try again.
           </p>
         </div>
       </CardContent>
@@ -78,14 +76,14 @@ export function StaffResultScreen({
     <PageContainer
       eyebrow={eyebrow}
       title="Result"
-      description="Look up a student's academic result through the registration-number contract without recomputing GPA or transcript values in the frontend."
+      description="Look up a student's academic result by registration number."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full">
-            Protected shell
+            Staff access
           </Badge>
           <Badge variant="outline" className="rounded-full">
-            Public lookup contract
+            Registration lookup
           </Badge>
           <Button
             type="button"
@@ -228,8 +226,8 @@ export function StaffResultScreen({
             result={result.result}
             gpaSummary={result.gpa_summary}
             scopeBadgeLabel="Lookup result"
-            registrationHelperText="Registration is shown exactly as returned by the lookup payload."
-            summaryScopeText="This result was fetched through the registration-number lookup contract and rendered without client-side recomputation."
+            registrationHelperText="Registration number from the lookup result."
+            summaryScopeText="Result details returned for the entered registration number."
           />
         ) : null}
       </div>

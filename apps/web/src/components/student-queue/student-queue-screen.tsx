@@ -6,19 +6,31 @@ import { AlertCircle, LibraryBig, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { PageContainer } from "@/components/app-shell";
 import { StudentQueueCancelDialog } from "@/components/student-queue/student-queue-cancel-dialog";
-import { StudentQueueCard } from "@/components/student-queue/student-queue-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { RowsControl } from "@/components/ui/rows-control";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   canCancelStudentQueueEntry,
   formatStudentQueueDateTime,
+  getStudentQueueStatusPresentation,
   type StudentQueueItem,
 } from "@/lib/student-queue";
 import { useStudentQueue } from "@/hooks/useStudentQueue";
 
 type StudentQueueDialogState = StudentQueueItem | null;
+const QUEUE_PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 function StudentQueueLoadingState(): React.JSX.Element {
   return (
@@ -46,15 +58,15 @@ function StudentQueueFailureState(props: {
             </p>
           </div>
           <p className="text-lg font-black text-foreground">
-            Unable to load your queue workspace.
+            Unable to load your waiting list.
           </p>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             {props.message}
           </p>
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
-              The currently shown queue rows may be stale. Retry to fetch the
-              latest queue state from the backend.
+              The current list may be out of date. Retry to load the latest
+              waiting-list information.
             </p>
           ) : null}
         </div>
@@ -75,11 +87,167 @@ function StudentQueueFailureState(props: {
   );
 }
 
+function StudentQueueTable(props: {
+  loading: boolean;
+  items: StudentQueueItem[];
+  totalItems: number;
+  actionableCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  mutationLocked: boolean;
+  cancelPendingBookId: string | null;
+  onCancelRequested: (item: StudentQueueItem) => void;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
+}): React.JSX.Element {
+  return (
+    <Card className="rounded-3xl border-border/60 bg-card/95 py-0 shadow-none">
+      <CardHeader className="space-y-3 px-5 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-2xl font-black tracking-tight">
+              Queue Entries
+            </CardTitle>
+            <CardDescription className="px-0 text-sm leading-6">
+              Track waiting-list progress, hold notifications, and cancel active
+              queue entries.
+            </CardDescription>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="rounded-full">
+              {props.totalItems} shown
+            </Badge>
+            <Badge variant="outline" className="rounded-full">
+              {props.actionableCount} cancelable
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3 px-2 py-2">
+        {props.loading ? (
+          <div className="grid gap-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-14 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-3xl border border-border/70">
+              <Table>
+                <TableHeader className="bg-muted/45">
+                  <TableRow className="hover:bg-muted/45">
+                    <TableHead className="w-20">Sr#</TableHead>
+                    <TableHead className="min-w-86">Book</TableHead>
+                    <TableHead className="w-40">Status</TableHead>
+                    <TableHead className="w-28">Position</TableHead>
+                    <TableHead className="w-44">Notified At</TableHead>
+                    <TableHead className="w-44">Hold Expires</TableHead>
+                    <TableHead className="w-56 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {props.items.map((item, index) => {
+                    const serialNumber =
+                      (props.page - 1) * props.pageSize + index + 1;
+                    const statusPresentation = getStudentQueueStatusPresentation(
+                      item.status,
+                    );
+                    const canCancel = canCancelStudentQueueEntry(item.status);
+                    const isPendingCancel = props.cancelPendingBookId === item.book_id;
+
+                    return (
+                      <TableRow key={`${item.book_id}-${item.status}-${item.position}`}>
+                        <TableCell className="font-semibold text-muted-foreground">
+                          {serialNumber.toString().padStart(2, "0")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="font-semibold text-foreground">
+                              {item.title}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {statusPresentation.description}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "rounded-full border",
+                              statusPresentation.toneClassName,
+                            )}
+                          >
+                            {statusPresentation.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-semibold text-foreground">
+                          #{item.position}
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground">
+                          {formatStudentQueueDateTime(item.notified_at)}
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground">
+                          {formatStudentQueueDateTime(item.hold_expires_at)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            {canCancel ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="rounded-xl"
+                                disabled={props.mutationLocked}
+                                onClick={() => {
+                                  props.onCancelRequested(item);
+                                }}
+                              >
+                                {isPendingCancel ? "Cancelling..." : "Cancel"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                No action
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+              <RowsControl
+                value={props.pageSize}
+                options={QUEUE_PAGE_SIZE_OPTIONS}
+                onValueChange={props.onPageSizeChange}
+              />
+              <PaginationControl
+                page={props.page}
+                totalPages={props.totalPages}
+                onPageChange={props.onPageChange}
+              />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function StudentQueueScreen(): React.JSX.Element {
   const queue = useStudentQueue({
     autoLoad: true,
   });
   const [dialogState, setDialogState] = React.useState<StudentQueueDialogState>(null);
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState<number>(20);
 
   React.useEffect(() => {
     if (!dialogState) {
@@ -98,6 +266,18 @@ export function StudentQueueScreen(): React.JSX.Element {
   const actionableCount = queue.items.filter((item) =>
     canCancelStudentQueueEntry(item.status),
   ).length;
+  const totalPages = Math.max(1, Math.ceil(queue.items.length / pageSize));
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedItems = React.useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return queue.items.slice(startIndex, startIndex + pageSize);
+  }, [queue.items, page, pageSize]);
 
   const closeDialog = React.useCallback(
     (open: boolean) => {
@@ -113,7 +293,7 @@ export function StudentQueueScreen(): React.JSX.Element {
     <PageContainer
       eyebrow="Student Queue"
       title="My Queue"
-      description="Review your queue participation, see backend-owned queue states, and cancel only the entries that are still active. Queue join still starts from the selected-book detail flow."
+      description="Track your waiting list, see pickup-ready books, and cancel entries that are still active."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full">
@@ -173,12 +353,11 @@ export function StudentQueueScreen(): React.JSX.Element {
                       No Queue Entries
                     </p>
                     <p className="text-2xl font-black tracking-tight text-foreground">
-                      Your queue workspace is currently empty.
+                      Your waiting list is currently empty.
                     </p>
                     <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-                      Queue join starts from the selected-book detail panel when
-                      a book is unavailable. Once you join successfully, the
-                      backend-owned queue entry will appear here.
+                      Join a waiting list from the book detail page when a book
+                      is unavailable. Your entries will appear here.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-3">
@@ -192,20 +371,26 @@ export function StudentQueueScreen(): React.JSX.Element {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {queue.items.map((item) => (
-                  <StudentQueueCard
-                    key={`${item.book_id}-${item.status}-${item.position}`}
-                    item={item}
-                    mutationLocked={queue.hasPendingMutation}
-                    cancelPending={queue.cancelAction.pendingBookId === item.book_id}
-                    onCancelRequested={(targetItem) => {
-                      queue.cancelAction.clearError();
-                      setDialogState(targetItem);
-                    }}
-                  />
-                ))}
-              </div>
+              <StudentQueueTable
+                loading={queue.loading}
+                items={pagedItems}
+                totalItems={queue.items.length}
+                actionableCount={actionableCount}
+                page={page}
+                pageSize={pageSize}
+                totalPages={totalPages}
+                mutationLocked={queue.hasPendingMutation}
+                cancelPendingBookId={queue.cancelAction.pendingBookId}
+                onCancelRequested={(targetItem) => {
+                  queue.cancelAction.clearError();
+                  setDialogState(targetItem);
+                }}
+                onPageChange={setPage}
+                onPageSizeChange={(nextPageSize) => {
+                  setPageSize(nextPageSize);
+                  setPage(1);
+                }}
+              />
             )}
           </>
         )}
@@ -219,7 +404,7 @@ export function StudentQueueScreen(): React.JSX.Element {
           supportingText={
             dialogState.status === "notified"
               ? `Hold expiry: ${formatStudentQueueDateTime(dialogState.hold_expires_at)}`
-              : `Queue status: ${dialogState.status.replace(/_/g, " ")}`
+              : `Status: ${dialogState.status.replace(/_/g, " ")}`
           }
           pending={queue.cancelAction.pendingBookId === dialogState.book_id}
           error={queue.cancelAction.error}

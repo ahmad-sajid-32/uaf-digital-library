@@ -288,7 +288,7 @@ export function DashboardActivityContour({
               viewBox={`0 0 ${width} ${height}`}
               className="h-40 w-full"
               role="img"
-              aria-label="Current ranked activity contour across top borrowed books"
+              aria-label="Top borrowed books chart"
               preserveAspectRatio="none"
             >
               <defs>

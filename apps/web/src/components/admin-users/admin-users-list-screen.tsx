@@ -105,7 +105,7 @@ const ROLE_TAB_COPY: Record<
   librarian: {
     title: "Librarian accounts",
     summary:
-      "Operational library staff accounts for circulation and catalog workflows.",
+      "Library staff accounts for circulation and catalog work.",
     emptyServerMessage:
       "No librarian accounts exist in the directory yet. Create the first librarian record to populate this tab.",
     emptyFilteredMessage:

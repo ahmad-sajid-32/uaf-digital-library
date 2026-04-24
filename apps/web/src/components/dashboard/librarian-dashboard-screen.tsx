@@ -56,13 +56,13 @@ import { cn } from "@/lib/utils";
 const LIBRARIAN_QUICK_LINKS: DashboardQuickLinkItem[] = [
   {
     title: "Catalog",
-    summary: "Review inventory truth and queue-heavy titles.",
+    summary: "Review books and availability.",
     href: "/librarian/catalog",
     icon: BookCopy,
   },
   {
     title: "Circulation",
-    summary: "Supervise active and overdue loan pressure.",
+    summary: "Review active and overdue loans.",
     href: "/librarian/circulation",
     icon: LibraryBig,
   },
@@ -74,7 +74,7 @@ const LIBRARIAN_QUICK_LINKS: DashboardQuickLinkItem[] = [
   },
   {
     title: "Documents",
-    summary: "Handle finalize, retry, and re-upload work.",
+    summary: "Review documents that need action.",
     href: "/librarian/documents",
     icon: FileText,
   },
@@ -153,7 +153,7 @@ function DashboardErrorState(props: {
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
               The previous data is still visible. Refresh to try loading the
-              latest operational state.
+              latest information.
             </p>
           ) : null}
         </div>
@@ -237,15 +237,14 @@ function QuietOperationalState(): React.JSX.Element {
               variant="outline"
               className="rounded-full border-success/20 bg-success/10 text-success"
             >
-              Quiet State
+              All Clear
             </Badge>
             <p className="text-xl font-black tracking-tight text-foreground">
-              No active pressure needs escalation right now.
+              Nothing needs attention right now.
             </p>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              The current backend signals show no overdue spike, no pending fine
-              review backlog, and no document-processing actions waiting for
-              staff.
+              There are currently no overdue books, pending fines, or document
+              items waiting for staff action.
             </p>
           </div>
           <Button asChild variant="outline" className="rounded-xl">
@@ -384,11 +383,10 @@ function DocumentAttentionSection(props: {
         {props.items.length === 0 ? (
           <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-background/55 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-foreground">
-              No document-processing actions are waiting right now.
+              No documents need action right now.
             </p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              When uploaded, failed, or stale records need intervention, they
-              will appear here.
+              Documents that need review will appear here.
             </p>
           </div>
         ) : (
@@ -437,9 +435,9 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
 
   return (
     <PageContainer
-      eyebrow="Librarian Workspace"
+      eyebrow="Librarian Dashboard"
       title="Dashboard"
-      description="See current circulation, fines, queue, and document attention from one read-only operational overview."
+      description="Review circulation, overdue books, fines, documents, and waiting-list activity."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -490,18 +488,18 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="space-y-2">
                       <h2 className="font-display text-3xl font-black tracking-tight text-foreground">
-                        See what needs librarian attention now.
+                        Today&rsquo;s library work
                       </h2>
                       <p className="max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
                         {metricsQuery.isOperationallyQuiet
-                          ? "Operations are quiet right now. No immediate librarian pressure is open."
+                          ? "Nothing needs attention right now."
                           : metrics.overdueLoanCount > 0
-                            ? "Overdue loans need attention first."
+                            ? "Start with overdue books."
                             : metrics.documentsRequiringActionCount > 0
-                              ? "Document processing has records that need action."
+                              ? "Documents need staff review."
                               : metrics.pendingFineCount > 0
-                                ? "Pending fine review is still open."
-                                : "Circulation is active and should stay supervised."}
+                                ? "Pending fines need review."
+                                : "Circulation is active today."}
                       </p>
                     </div>
 
@@ -512,9 +510,8 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                         {formatRelativeTime(metricsQuery.lastLoadedAt)}
                       </div>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        This overview shows current circulation, fines,
-                        documents, and queue pressure without exposing
-                        admin-only analytics.
+                        This overview shows circulation, fines, documents, and
+                        waiting-list activity.
                       </p>
                     </div>
                   </div>
@@ -529,8 +526,8 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                   value={metrics.activeLoanCount}
                   summary={
                     metrics.activeLoanCount > 0
-                      ? "Current circulation load is live and needs routine supervision."
-                      : "No live loan workload is open right now."
+                      ? "Books are currently borrowed by readers."
+                      : "No active loans right now."
                   }
                   href="/librarian/circulation"
                   actionLabel="Open circulation"
@@ -538,12 +535,12 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                   tone="primary"
                 />
                 <OverviewMetricCard
-                  title="Overdue Loans"
+                  title="Overdue Books"
                   value={metrics.overdueLoanCount}
                   summary={
                     metrics.overdueLoanCount > 0
-                      ? "These records need immediate circulation attention."
-                      : "No overdue loans are currently open."
+                      ? "These books need immediate follow-up."
+                      : "No overdue books are currently open."
                   }
                   href="/librarian/circulation"
                   actionLabel="Review overdue"
@@ -555,8 +552,8 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                   value={metrics.pendingFineCount}
                   summary={
                     metrics.pendingFineCount > 0
-                      ? "Pending fine records still need librarian review."
-                      : "No fine records are currently waiting for review."
+                      ? "Pending fine records need review."
+                      : "No fine records are waiting for review."
                   }
                   href="/librarian/fines"
                   actionLabel="Open fines"
@@ -564,12 +561,12 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                   tone="neutral"
                 />
                 <OverviewMetricCard
-                  title="Documents Needing Action"
+                  title="Documents to Review"
                   value={metrics.documentsRequiringActionCount}
                   summary={
                     metrics.documentsRequiringActionCount > 0
-                      ? "Some documents still need finalize, retry, or re-upload action."
-                      : "No document-processing actions are waiting right now."
+                      ? "Some documents need staff action."
+                      : "No documents are waiting for action."
                   }
                   href="/librarian/documents"
                   actionLabel="Open documents"
@@ -590,28 +587,28 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                 <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
                   <CardContent className="grid gap-6 px-6 py-6">
                     <RankedBooksList
-                      eyebrow="Queue Pressure"
-                      title="Highest-demand books"
-                      description="These titles currently have the strongest waiting pressure and should guide inventory or circulation attention first."
+                      eyebrow="Books With Waiting Readers"
+                      title="Waiting-list activity"
+                      description="Titles with active waiting-list demand."
                       href="/librarian/catalog"
                       actionLabel="Open catalog"
                       items={metricsQuery.queueHotspots}
                       emptyTitle="No books currently have waiting readers."
-                      emptyMessage="Queue hotspots will appear here when reader demand starts to pile up around specific titles."
+                      emptyMessage="Books with waiting readers will appear here."
                       valueLabel={(item) =>
                         `${formatCount("waitingCount" in item ? item.waitingCount : 0)} waiting reader${"waitingCount" in item && item.waitingCount === 1 ? "" : "s"}`
                       }
                     />
 
                     <RankedBooksList
-                      eyebrow="Circulation Context"
-                      title="Most borrowed right now"
-                      description="Secondary catalog context for titles drawing the most borrowing activity."
+                      eyebrow="Most Borrowed Books"
+                      title="Borrowing activity"
+                      description="Books borrowed most often right now."
                       href="/librarian/circulation"
                       actionLabel="Open circulation"
                       items={metricsQuery.popularBooks}
                       emptyTitle="No popular-book ranking yet."
-                      emptyMessage="Borrow activity has not produced a ranked popular-books list yet."
+                      emptyMessage="Most borrowed books will appear here."
                       valueLabel={(item) =>
                         `${formatCount("borrowCount" in item ? item.borrowCount : 0)} borrow${"borrowCount" in item && item.borrowCount === 1 ? "" : "s"} recorded`
                       }
@@ -634,11 +631,10 @@ export function LibrarianDashboardScreen(): React.JSX.Element {
                     Quick Access
                   </p>
                   <CardTitle className="text-2xl font-black tracking-tight">
-                    Open the owning module
+                    Open Staff Sections
                   </CardTitle>
                   <CardDescription className="px-0 text-sm leading-6">
-                    Move directly from the dashboard into the shared staff
-                    workspace that owns the next action.
+                    Go to catalog, circulation, fines, documents, or assistant.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="px-6 py-6">

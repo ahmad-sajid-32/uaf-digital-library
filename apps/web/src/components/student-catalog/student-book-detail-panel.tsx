@@ -93,30 +93,30 @@ function getActionRecommendation(item: PublicBookDetailItem | null): {
     return {
       eyebrow: "Choose A Book",
       description:
-        "Select a book first. Borrow and queue entry stay attached to the selected-book context so every later circulation action starts from one real book.",
+        "Select a book first. Borrow and waiting-list actions are available after you pick a book.",
     };
   }
 
   if (item.status === "available") {
     return {
-      eyebrow: "Borrow Entry",
+      eyebrow: "Borrow",
       description:
-        "This selected-book panel now owns the real borrow action. Queue join stays here too, but it should only be used when this selected book is not currently available.",
+        "This book is available. Borrow it here. Use the waiting list only when a book is unavailable.",
     };
   }
 
   if (item.status === "borrowed" || item.status === "reserved") {
     return {
-      eyebrow: "Borrow Or Queue Branch",
+      eyebrow: "Waiting List",
       description:
-        "This book is not immediately available right now. Borrow attempts and queue joins both stay here and must rely on backend truth for the final outcome.",
+        "This book is not available right now. Join the waiting list here.",
     };
   }
 
   return {
     eyebrow: "Availability Restricted",
     description:
-      "This book is not in a normal borrowing state right now. The action entry stays here, but the backend still decides whether borrow or queue requests are allowed.",
+      "This book cannot be borrowed right now. Check back later or select another book.",
   };
 }
 
@@ -239,7 +239,7 @@ function QueueSummaryCard(props: {
   const queuePressureLabel =
     props.queue.waiting_count > 0
       ? `${props.queue.waiting_count} student${props.queue.waiting_count === 1 ? "" : "s"} waiting`
-      : "No current queue pressure";
+      : "No students are waiting right now";
 
   return (
     <Card className="rounded-3xl border-border/70 bg-muted/30 py-0 shadow-none">
@@ -251,8 +251,7 @@ function QueueSummaryCard(props: {
           <BookStatusBadge status={props.queue.book_status} />
         </div>
         <CardDescription className="px-0 text-sm leading-6">
-          This queue state belongs only to the currently selected book. It is
-          not the same thing as the later `My Queue` module.
+          This waiting-list summary is for the selected book only.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 px-5 pb-5 sm:grid-cols-2">
@@ -273,7 +272,9 @@ function QueueSummaryCard(props: {
             Notification State
           </p>
           <p className="mt-2 text-sm font-semibold text-foreground">
-            {props.queue.has_notified ? "Hold notice sent" : "No active hold notice"}
+            {props.queue.has_notified
+              ? "Hold notice sent"
+              : "No active hold notice"}
           </p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Notified at {formatDateTime(props.queue.notified_at)}
@@ -287,9 +288,6 @@ function QueueSummaryCard(props: {
           <p className="mt-2 text-sm font-semibold text-foreground">
             {formatDateTime(props.queue.hold_expires_at)}
           </p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            If a hold is active, the database still owns its expiry behavior.
-          </p>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-4">
@@ -298,10 +296,6 @@ function QueueSummaryCard(props: {
           </p>
           <p className="mt-2">
             <BookStatusBadge status={props.queue.book_status} />
-          </p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Queue pressure and current book state are shown together so later
-            borrow and queue entry decisions stay tied to one selected record.
           </p>
         </div>
       </CardContent>
@@ -338,6 +332,9 @@ interface StudentBookDetailPanelProps {
     clearError: () => void;
     submit: (bookId: string) => Promise<boolean>;
   };
+  isSelectedBookAlreadyQueued: boolean;
+  isSelectedBookAlreadyBorrowed: boolean;
+  isSelectedBookReadyForPickup: boolean;
   onClearSelection: () => void;
 }
 
@@ -347,19 +344,54 @@ export function StudentBookDetailPanel({
   selectedBookQueue,
   borrowAction,
   queueAction,
+  isSelectedBookAlreadyQueued,
+  isSelectedBookAlreadyBorrowed,
+  isSelectedBookReadyForPickup,
   onClearSelection,
 }: StudentBookDetailPanelProps): React.JSX.Element {
   const [borrowDialogOpen, setBorrowDialogOpen] = React.useState(false);
   const detailItem = selectedBook.item;
-  const displayTitle = detailItem?.title ?? selectedListItem?.title ?? "Selected Book";
+  const displayTitle =
+    detailItem?.title ?? selectedListItem?.title ?? "Selected Book";
   const displayAuthor =
-    detailItem?.author ?? selectedListItem?.author ?? "Choose a book to inspect its detail.";
-  const recommendation = getActionRecommendation(detailItem);
+    detailItem?.author ??
+    selectedListItem?.author ??
+    "Choose a book to inspect its detail.";
   const clearBorrowError = borrowAction.clearError;
   const clearQueueError = queueAction.clearError;
+  const canBorrowFromPickupHold =
+    Boolean(detailItem)
+    && (detailItem?.status === "reserved" || detailItem?.status === "borrowed")
+    && isSelectedBookReadyForPickup;
+  const canBorrow = detailItem?.status === "available" || canBorrowFromPickupHold;
   const canJoinQueue =
-    detailItem?.status === "borrowed" || detailItem?.status === "reserved";
+    (detailItem?.status === "borrowed" || detailItem?.status === "reserved")
+    && !isSelectedBookAlreadyBorrowed;
+  const recommendation = canBorrowFromPickupHold
+    ? {
+        eyebrow: "Borrow",
+        description:
+          "This reserved copy is ready for your pickup. Borrow it now from this panel.",
+      }
+    : getActionRecommendation(detailItem);
 
+  const borrowButtonTitle = !detailItem
+    ? "Select a book first."
+    : canBorrow
+      ? canBorrowFromPickupHold
+        ? "Borrow this reserved copy that is ready for your pickup."
+        : "Borrow this available book."
+      : "This book is not available for borrowing right now.";
+
+  const queueButtonTitle = !detailItem
+    ? "Select a book first."
+    : isSelectedBookAlreadyBorrowed
+      ? "You already borrowed this book. Return it before joining the waiting list."
+    : isSelectedBookAlreadyQueued
+      ? "You are already on the waiting list for this book."
+      : canJoinQueue
+        ? "Join the waiting list for this book."
+        : "Waiting list is available only when the book is borrowed or reserved.";
   React.useEffect(() => {
     clearBorrowError();
     clearQueueError();
@@ -377,9 +409,8 @@ export function StudentBookDetailPanel({
             Pick one catalog row to inspect it properly.
           </CardTitle>
           <CardDescription className="px-0 text-sm leading-6">
-            Discovery lives in the list. Borrow and queue entry stay in this
-            detail panel so every real student circulation workflow starts from
-            the correct book.
+            Select a book from the list to view details, borrow it, or join its
+            waiting list.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5 pb-5">
@@ -391,9 +422,8 @@ export function StudentBookDetailPanel({
               Choose a book from the catalog list.
             </p>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Once you select a book, this panel will show public detail,
-              authenticated queue pressure, the live borrow action, and the
-              correct queue-entry point for unavailable books.
+              After you select a book, this panel shows details, waiting-list
+              activity, and available actions.
             </p>
           </div>
         </CardContent>
@@ -450,15 +480,12 @@ export function StudentBookDetailPanel({
         <CardContent className="space-y-4 px-5 pb-5">
           {selectedBook.error && detailItem ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              The last loaded detail is still visible, but refresh failed:
-              {" "}
+              The last loaded detail is still visible, but refresh failed:{" "}
               {selectedBook.error}
             </div>
           ) : null}
 
-          {selectedBook.loading && !detailItem ? (
-            <DetailLoadingState />
-          ) : null}
+          {selectedBook.loading && !detailItem ? <DetailLoadingState /> : null}
 
           {!selectedBook.loading && !detailItem && selectedBook.error ? (
             <DetailFailureState
@@ -477,9 +504,6 @@ export function StudentBookDetailPanel({
                 <p className="mt-2 text-lg font-black text-foreground">
                   {formatMoney(detailItem.replacement_cost)}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  This is the configured replacement value for this record.
-                </p>
               </div>
 
               <div className="rounded-3xl border border-border/70 bg-background/80 px-4 py-4">
@@ -490,7 +514,7 @@ export function StudentBookDetailPanel({
                   {formatMoney(detailItem.fine_per_day_rate)}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Fine calculation still stays database-owned.
+                  Fine amount per overdue day.
                 </p>
               </div>
 
@@ -503,10 +527,6 @@ export function StudentBookDetailPanel({
                     detailItem.override_borrow_duration_days,
                   )}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Custom duration appears only when this record overrides the
-                  standard rule.
-                </p>
               </div>
 
               <div className="rounded-3xl border border-border/70 bg-background/80 px-4 py-4">
@@ -516,10 +536,6 @@ export function StudentBookDetailPanel({
                 <p className="mt-2 text-sm font-semibold text-foreground">
                   Added {formatDateTime(detailItem.created_at)}
                 </p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Public-safe detail stays separate from staff inventory
-                  management data.
-                </p>
               </div>
             </div>
           ) : null}
@@ -528,9 +544,8 @@ export function StudentBookDetailPanel({
 
           {selectedBookQueue.error && selectedBookQueue.item ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              The last loaded queue summary is still visible, but refresh failed:
-              {" "}
-              {selectedBookQueue.error}
+              The last waiting-list summary is still visible, but refresh
+              failed: {selectedBookQueue.error}
             </div>
           ) : null}
 
@@ -538,9 +553,9 @@ export function StudentBookDetailPanel({
             <QueueLoadingState />
           ) : null}
 
-          {!selectedBookQueue.loading
-          && !selectedBookQueue.item
-          && selectedBookQueue.error ? (
+          {!selectedBookQueue.loading &&
+          !selectedBookQueue.item &&
+          selectedBookQueue.error ? (
             <QueueFailureState
               message={selectedBookQueue.error}
               requiresAuth={selectedBookQueue.requiresAuth}
@@ -554,7 +569,7 @@ export function StudentBookDetailPanel({
 
           {selectedBookQueue.refreshing && selectedBookQueue.item ? (
             <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              Refreshing queue visibility for the selected book.
+              Refreshing waiting-list details for this book.
             </div>
           ) : null}
 
@@ -564,15 +579,9 @@ export function StudentBookDetailPanel({
                 <Badge variant="outline" className="rounded-full">
                   {recommendation.eyebrow}
                 </Badge>
-                <Badge variant="secondary" className="rounded-full">
-                  Borrow live
-                </Badge>
-                <Badge variant="secondary" className="rounded-full">
-                  Queue live
-                </Badge>
               </div>
               <CardTitle className="text-lg font-black tracking-tight">
-                Action Entry
+                Available Actions
               </CardTitle>
               <CardDescription className="px-0 text-sm leading-6">
                 {recommendation.description}
@@ -587,14 +596,16 @@ export function StudentBookDetailPanel({
               <Button
                 type="button"
                 className="justify-between rounded-2xl"
-                disabled={!detailItem || borrowAction.pending}
-                title={
-                  detailItem
-                    ? "Borrow uses the real backend route from this selected-book context."
-                    : "Select a book first."
+                disabled={
+                  !detailItem ||
+                  !canBorrow ||
+                  borrowAction.pending ||
+                  queueAction.pending
                 }
+                title={borrowButtonTitle}
+                aria-label={borrowButtonTitle}
                 onClick={() => {
-                  if (!detailItem) {
+                  if (!detailItem || !canBorrow) {
                     return;
                   }
 
@@ -612,22 +623,29 @@ export function StudentBookDetailPanel({
                     Borrow
                     <ArrowRight className="h-4 w-4" />
                   </>
-                  )}
+                )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="justify-between rounded-2xl"
-                disabled={!detailItem || !canJoinQueue || queueAction.pending}
-                title={
-                  !detailItem
-                    ? "Select a book first."
-                    : canJoinQueue
-                      ? "Join the backend-owned waiting queue for this selected book."
-                      : "Queue join only applies when this selected book is not currently available."
+                disabled={
+                  !detailItem ||
+                  !canJoinQueue ||
+                  isSelectedBookAlreadyBorrowed ||
+                  isSelectedBookAlreadyQueued ||
+                  queueAction.pending ||
+                  borrowAction.pending
                 }
+                title={queueButtonTitle}
+                aria-label={queueButtonTitle}
                 onClick={() => {
-                  if (!detailItem || !canJoinQueue) {
+                  if (
+                    !detailItem ||
+                    !canJoinQueue ||
+                    isSelectedBookAlreadyBorrowed ||
+                    isSelectedBookAlreadyQueued
+                  ) {
                     return;
                   }
 
@@ -642,7 +660,11 @@ export function StudentBookDetailPanel({
                   </>
                 ) : (
                   <>
-                    Join Queue
+                    {isSelectedBookAlreadyBorrowed
+                      ? "Already Borrowed"
+                      : isSelectedBookAlreadyQueued
+                      ? "Already In Waiting List"
+                      : "Join Waiting List"}
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -669,23 +691,6 @@ export function StudentBookDetailPanel({
               </Button>
             </CardContent>
           </Card>
-
-          <div className="rounded-3xl border border-dashed border-border/70 bg-background/65 px-4 py-4">
-            <div className="flex items-start gap-3">
-              <BookOpenText className="mt-0.5 h-5 w-5 text-primary" />
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">
-                  Why actions stay here
-                </p>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Discovery starts in the catalog list, but borrowing and queue
-                  entry must stay attached to one selected book. That keeps the
-                  student lifecycle tied to the real book context instead of
-                  detached shortcut buttons.
-                </p>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -701,7 +706,7 @@ export function StudentBookDetailPanel({
             setBorrowDialogOpen(open);
           }}
           bookTitle={detailItem.title}
-          supportingText={`Current status: ${detailItem.status.replace(/_/g, " ")}. Borrow success or conflict still comes from the backend, not from frontend guesses.`}
+          supportingText={`Current status: ${detailItem.status.replace(/_/g, " ")}.`}
           pending={borrowAction.pending}
           error={borrowAction.error}
           onConfirm={() => borrowAction.submit(detailItem.id)}

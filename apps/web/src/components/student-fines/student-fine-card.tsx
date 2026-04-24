@@ -27,12 +27,12 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
-                className={cn("rounded-full border", statusPresentation.toneClassName)}
+                className={cn(
+                  "rounded-full border",
+                  statusPresentation.toneClassName,
+                )}
               >
                 {statusPresentation.label}
-              </Badge>
-              <Badge variant="secondary" className="rounded-full">
-                Read only
               </Badge>
             </div>
             <CardTitle className="text-2xl font-black tracking-tight">
@@ -64,7 +64,7 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
               {formatStudentFineDateTime(item.fine_created_at)}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Fine amount and status come directly from backend records.
+              Fine amount and status for this record.
             </p>
           </div>
 
@@ -77,7 +77,7 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Borrow context is shown here so the fine is understandable without
-              recalculating anything in the frontend.
+              needing extra calculation.
             </p>
           </div>
 
@@ -89,7 +89,7 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
               {formatStudentFineDateTime(item.due_date)}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              This view does not estimate overdue days or recompute money logic.
+              Due date linked to this fine.
             </p>
           </div>
 
@@ -101,8 +101,7 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
               {formatStudentFineDateTime(item.return_date)}
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              If no return is recorded yet, the backend still owns what that
-              means for the fine lifecycle.
+              If no return is recorded yet, this fine may still be pending.
             </p>
           </div>
         </div>
@@ -116,8 +115,8 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
                   Visibility only
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  This student module only shows your fine status. It does not
-                  expose settlement actions.
+                  This screen only shows your fine status. It does not expose
+                  settlement actions.
                 </p>
               </div>
             </div>
@@ -128,11 +127,11 @@ export function StudentFineCard({ item }: StudentFineCardProps) {
               <AlertCircle className="mt-0.5 h-5 w-5 text-primary" />
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">
-                  Backend-owned fine logic
+                  Fine status information
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Amount, status, and settlement outcomes stay backend-owned.
-                  This UI only renders the returned truth.
+                  Amount, status, and resolution are shown from your account
+                  records.
                 </p>
               </div>
             </div>

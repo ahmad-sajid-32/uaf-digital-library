@@ -28,7 +28,7 @@ function getDialogCopy(action: StudentBorrowActionDialogType): {
         confirmLabel: "Confirm Borrow",
         pendingLabel: "Borrowing...",
         description:
-          "This sends a real borrow request to the backend. Borrow limits, overdue restrictions, queue conflicts, and hold rules are still decided by the backend.",
+          "This will submit your borrow request. Borrow limits, overdue restrictions, and waiting-list conflicts are checked automatically.",
       };
     case "renew":
       return {
@@ -36,7 +36,7 @@ function getDialogCopy(action: StudentBorrowActionDialogType): {
         confirmLabel: "Confirm Renew",
         pendingLabel: "Renewing...",
         description:
-          "This asks the backend to extend the due date. Queue pressure, renewal limits, and loan state still stay backend-owned.",
+          "This will request a due-date extension. Renewal limits and waiting-list rules are checked automatically.",
       };
     case "return":
       return {
@@ -44,7 +44,7 @@ function getDialogCopy(action: StudentBorrowActionDialogType): {
         confirmLabel: "Confirm Return",
         pendingLabel: "Returning...",
         description:
-          "This sends a real return request to the backend. Queue reassignment and fine side effects still stay backend-owned.",
+          "This will submit your return. Any waiting-list updates and fine updates are handled automatically.",
       };
   }
 }

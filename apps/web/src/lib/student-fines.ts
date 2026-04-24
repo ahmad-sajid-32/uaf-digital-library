@@ -94,19 +94,19 @@ export function getStudentFineStatusPresentation(status: string): {
     case "pending":
       return {
         label: "Pending",
-        helper: "This fine is still unresolved in backend truth.",
+        helper: "This fine is still pending.",
         toneClassName: "border-amber-500/20 bg-amber-500/10 text-amber-700",
       };
     case "paid":
       return {
         label: "Paid",
-        helper: "This fine was resolved as paid in backend settlement history.",
+        helper: "This fine has been paid.",
         toneClassName: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700",
       };
     case "waived":
       return {
         label: "Waived",
-        helper: "This fine was resolved as waived in backend settlement history.",
+        helper: "This fine has been waived.",
         toneClassName: "border-sky-500/20 bg-sky-500/10 text-sky-700",
       };
     case "cancelled":
@@ -118,8 +118,7 @@ export function getStudentFineStatusPresentation(status: string): {
     default:
       return {
         label: status.replace(/_/g, " "),
-        helper:
-          "This fine status came from the backend and is shown without invented frontend meaning.",
+        helper: "Current fine status for this record.",
         toneClassName: "border-border bg-muted text-muted-foreground",
       };
   }

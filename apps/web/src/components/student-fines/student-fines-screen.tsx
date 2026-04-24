@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import * as React from "react";
-import { AlertCircle, CircleDollarSign, History, LoaderCircle, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  CircleDollarSign,
+  History,
+  LoaderCircle,
+  RefreshCw,
+} from "lucide-react";
 
 import { PageContainer } from "@/components/app-shell";
 import { StudentFineCard } from "@/components/student-fines/student-fine-card";
@@ -46,8 +52,8 @@ function StudentFinesFailureState(props: {
           </p>
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
-              The currently shown fine rows may be stale. Retry to fetch the
-              latest records from the backend.
+              The current fine list may be out of date. Retry to load the latest
+              records.
             </p>
           ) : null}
         </div>
@@ -68,9 +74,7 @@ function StudentFinesFailureState(props: {
   );
 }
 
-function StudentFinesEmptyState(props: {
-  section: "current" | "history";
-}) {
+function StudentFinesEmptyState(props: { section: "current" | "history" }) {
   const isCurrent = props.section === "current";
 
   return (
@@ -94,8 +98,8 @@ function StudentFinesEmptyState(props: {
           </p>
           <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
             {isCurrent
-              ? "This current-fines view is read-only and only shows unresolved fine records after student-safe partitioning."
-              : "Historical fines appear here once the backend has resolved records for your account."}
+              ? "This section is read-only and shows unresolved fine records."
+              : "Resolved fine records will appear here when available."}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -122,7 +126,7 @@ export function StudentFinesScreen() {
     <PageContainer
       eyebrow="Student Fines"
       title="Fines"
-      description="Review current fine visibility and historical resolution records without exposing unsupported settlement actions. Fine amounts and statuses remain backend-owned."
+      description="Review pending fines and fine history for your account."
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary" className="rounded-full">
@@ -131,9 +135,7 @@ export function StudentFinesScreen() {
           <Badge variant="outline" className="rounded-full">
             {fines.history.items.length} history
           </Badge>
-          <Badge variant="outline" className="rounded-full">
-            Read only
-          </Badge>
+
           <Button
             type="button"
             variant="outline"
@@ -142,10 +144,10 @@ export function StudentFinesScreen() {
               void fines.refresh();
             }}
             disabled={
-              fines.current.loading
-              || fines.current.refreshing
-              || fines.history.loading
-              || fines.history.refreshing
+              fines.current.loading ||
+              fines.current.refreshing ||
+              fines.history.loading ||
+              fines.history.refreshing
             }
           >
             {fines.current.refreshing || fines.history.refreshing ? (

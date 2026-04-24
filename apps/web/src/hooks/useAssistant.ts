@@ -28,7 +28,7 @@ import {
 import { useAuthSessionActions } from "@/hooks/useAuthSessionActions";
 
 type AsyncStatus = "idle" | "loading" | "success" | "error";
-const MIN_ASSISTANT_QUERY_LENGTH = 3;
+const MIN_ASSISTANT_QUERY_LENGTH = 1;
 
 interface ConversationMessagesState {
   status: AsyncStatus;
@@ -52,6 +52,48 @@ function getDefaultMessagesState(): ConversationMessagesState {
 
 function normalizeQuery(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function sortMessages(items: AssistantMessageItem[]): AssistantMessageItem[] {
+  const seenMessageIds = new Set<string>();
+  const uniqueItems: AssistantMessageItem[] = [];
+
+  items.forEach((item) => {
+    if (seenMessageIds.has(item.id)) {
+      return;
+    }
+
+    seenMessageIds.add(item.id);
+    uniqueItems.push(item);
+  });
+
+  return uniqueItems.sort((left, right) => {
+    const leftTimestamp = Date.parse(left.created_at);
+    const rightTimestamp = Date.parse(right.created_at);
+    const leftHasTimestamp = Number.isFinite(leftTimestamp);
+    const rightHasTimestamp = Number.isFinite(rightTimestamp);
+
+    if (
+      leftHasTimestamp &&
+      rightHasTimestamp &&
+      leftTimestamp !== rightTimestamp
+    ) {
+      return leftTimestamp - rightTimestamp;
+    }
+
+    if (leftHasTimestamp !== rightHasTimestamp) {
+      return leftHasTimestamp ? -1 : 1;
+    }
+
+    const leftRoleRank = left.role === "user" ? 0 : 1;
+    const rightRoleRank = right.role === "user" ? 0 : 1;
+
+    if (leftRoleRank !== rightRoleRank) {
+      return leftRoleRank - rightRoleRank;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function sortConversations(
@@ -243,7 +285,7 @@ export function useAssistant() {
           ...current,
           [conversationId]: {
             status: "success",
-            items: response.data.items,
+            items: sortMessages(response.data.items),
             error: null,
             errorStatus: null,
             fetchedAt: Date.now(),
@@ -415,11 +457,11 @@ export function useAssistant() {
           ...current,
           [turn.conversation.id]: {
             status: "success",
-            items: [
+            items: sortMessages([
               ...previousItems,
               turn.user_message,
               turn.assistant_message,
-            ],
+            ]),
             error: null,
             errorStatus: null,
             fetchedAt: Date.now(),
@@ -562,8 +604,8 @@ export function useAssistant() {
     hasConversations: conversations.length > 0,
     isDraftConversation: activeConversationId === null,
     canSubmitQuery:
-      normalizedComposerQuery.length >= MIN_ASSISTANT_QUERY_LENGTH
-      && !submitPending,
+      normalizedComposerQuery.length >= MIN_ASSISTANT_QUERY_LENGTH &&
+      !submitPending,
     minQueryLength: MIN_ASSISTANT_QUERY_LENGTH,
     startNewConversation,
     selectConversation,

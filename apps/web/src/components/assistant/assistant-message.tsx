@@ -36,8 +36,9 @@ export function AssistantMessage({
   message: AssistantMessageItem;
 }): React.JSX.Element {
   const isUser = message.role === "user";
-  const shouldShowFallbackState =
-    !isUser && Boolean(message.fallback_used);
+  const shouldShowFallbackState = !isUser && Boolean(message.fallback_used);
+  const shouldShowCitations =
+    !isUser && !shouldShowFallbackState && message.citations.length > 0;
 
   if (isUser) {
     return (
@@ -69,14 +70,16 @@ export function AssistantMessage({
           </p>
           {shouldShowFallbackState ? (
             <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/8 px-3 py-3 text-sm leading-6 text-amber-950 dark:text-amber-100">
-              This answer used the assistant fallback because it could not ground
-              the response in the retrieved official university documents for
-              this turn.
+              This answer used the assistant fallback because it could not
+              ground the response in the retrieved official university documents
+              for this turn.
             </div>
           ) : null}
         </div>
 
-        <AssistantCitations citations={message.citations} />
+        {shouldShowCitations ? (
+          <AssistantCitations citations={message.citations} />
+        ) : null}
 
         <p className="px-1 text-xs text-muted-foreground">
           {formatTimestamp(message.created_at)}
@@ -109,7 +112,7 @@ export function AssistantPendingTurn({
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <LoaderCircle className="h-4 w-4 animate-spin" />
-            <span>Generating grounded answer...</span>
+            <span>Searching documents when needed...</span>
           </div>
         </div>
       </div>

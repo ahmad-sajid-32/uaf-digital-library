@@ -133,8 +133,8 @@ export function AssistantThread({
               <span>
                 {isDraftConversation
                   ? hasConversations
-                    ? "Start another conversation from official university documents."
-                    : "Start your first conversation from official university documents."
+                    ? "Start another conversation with general or official-document questions."
+                    : "Start your first conversation with a general or official-document question."
                   : ""}
               </span>
               {messagesRefreshing ? (
@@ -193,9 +193,9 @@ export function AssistantThread({
                     : "Ask your first question"}
                 </p>
                 <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                  Ask one clear question about an official university document.
-                  The assistant will keep the conversation thread once the
-                  grounded answer is completed.
+                  Ask a general question or ask about official university
+                  documents. Document sources are shown only when matching
+                  official material is found.
                 </p>
               </div>
             </div>

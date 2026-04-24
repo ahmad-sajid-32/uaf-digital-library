@@ -32,9 +32,7 @@ export function StudentResultTable({ resultTable }: StudentResultTableProps) {
             No tabular result rows were returned.
           </p>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            The academic result payload did not include a usable header-and-row
-            table for this account. The screen preserves that sparse payload
-            truth instead of fabricating transcript rows.
+            A course table is not available for this result yet.
           </p>
         </CardContent>
       </Card>
@@ -57,8 +55,7 @@ export function StudentResultTable({ resultTable }: StudentResultTableProps) {
             Course And Semester Rows
           </CardTitle>
           <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Headers and row values are rendered directly from the academic
-            payload instead of hardcoding one transcript format.
+            Course rows for your available semesters.
           </p>
         </div>
       </CardHeader>

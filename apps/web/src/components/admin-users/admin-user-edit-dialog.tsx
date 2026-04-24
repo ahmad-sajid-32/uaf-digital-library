@@ -205,7 +205,7 @@ function RoleAwareFields(props: {
         />
         <p className="mt-2 text-xs text-muted-foreground">
           Email stays read-only because identity changes are not part of this
-          contract.
+          form.
         </p>
       </div>
 
@@ -387,7 +387,7 @@ export function AdminUserEditDialog({
             </DialogTitle>
             <DialogDescription className="text-sm leading-6">
               Update the details of this user. Fields that are not editable
-              based on the user's role.
+              remain locked based on user role.
             </DialogDescription>
           </DialogHeader>
 
@@ -425,7 +425,7 @@ export function AdminUserEditDialog({
             <EditStateCard
               icon={AlertTriangle}
               eyebrow="Retry Required"
-              title="Unable to load this edit surface."
+              title="Unable to load this edit form."
               message={error}
               onRetry={retry}
             />

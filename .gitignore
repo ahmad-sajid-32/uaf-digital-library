@@ -48,6 +48,7 @@ Thumbs.db
 structure.txt
 AGENT.md
 Plan.md
+DESIGN.md
 *.log
 *.db
 *.sqlite3

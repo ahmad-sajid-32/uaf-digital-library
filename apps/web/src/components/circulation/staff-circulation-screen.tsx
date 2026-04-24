@@ -132,7 +132,7 @@ const SCOPE_COPY: Record<
   active: {
     title: "Active Loans",
     summary:
-      "Track current borrowing activity, current due dates, and loan-linked queue pressure from one operations table.",
+      "Track current borrowed books, due dates, and waiting-list activity in one table.",
     searchPlaceholder:
       "Search borrower, email, roll number, employee code, title, or transaction ID",
     emptyServerMessage:
@@ -300,7 +300,7 @@ function CirculationFailureState(props: {
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
               The currently shown circulation data may be stale. Retry to fetch
-              the latest supervision state.
+              the latest information.
             </p>
           ) : null}
         </div>
@@ -900,7 +900,7 @@ export function StaffCirculationScreen(): React.JSX.Element {
       <PageContainer
         eyebrow="Staff Operations"
         title="Circulation"
-        description="Supervise active, overdue, and returned loan activity without reimplementing circulation rules outside the database."
+        description="Review active, overdue, and returned loans."
         actions={
           <Button
             type="button"
@@ -1009,8 +1009,7 @@ export function StaffCirculationScreen(): React.JSX.Element {
               <span className="font-semibold text-foreground">
                 {returnTarget?.user_full_name ?? "this borrower"}
               </span>
-              . The backend will own the actual return, fine, and
-              queue-promotion effects.
+              . Returning may also update fines and waiting-list status.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {returnError ? (
@@ -1064,8 +1063,7 @@ export function StaffCirculationScreen(): React.JSX.Element {
               <span className="font-semibold text-foreground">
                 {renewTarget?.user_full_name ?? "this borrower"}
               </span>
-              . The database will still enforce queue-block and renewal-limit
-              rules.
+              . Renewal is applied only when this loan is eligible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {renewError ? (

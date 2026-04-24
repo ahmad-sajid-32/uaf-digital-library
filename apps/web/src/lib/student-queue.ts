@@ -31,8 +31,14 @@ export function formatStudentQueueDateTime(value: string | null): string {
   return formatStudentBorrowDateTime(value);
 }
 
+function normalizeQueueStatus(status: string): string {
+  return String(status).trim().toLowerCase();
+}
+
 export function canCancelStudentQueueEntry(status: string): boolean {
-  return status === "waiting" || status === "notified";
+  const normalizedStatus = normalizeQueueStatus(status);
+
+  return normalizedStatus === "waiting" || normalizedStatus === "notified";
 }
 
 export function getStudentQueueStatusPresentation(status: string): {
@@ -40,18 +46,20 @@ export function getStudentQueueStatusPresentation(status: string): {
   description: string;
   toneClassName: string;
 } {
-  switch (status) {
+  const normalizedStatus = normalizeQueueStatus(status);
+
+  switch (normalizedStatus) {
     case "waiting":
       return {
         label: "Waiting",
-        description: "Your request is still waiting in the backend-managed queue.",
+        description: "Your request is in the waiting list.",
         toneClassName: "border-primary/20 bg-primary/10 text-primary",
       };
     case "notified":
       return {
         label: "Hold Ready",
         description:
-          "The backend has marked this queue entry as notified. Hold-expiry behavior still stays backend-owned.",
+          "This book is ready for pickup.",
         toneClassName: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700",
       };
     case "fulfilled":
@@ -76,9 +84,8 @@ export function getStudentQueueStatusPresentation(status: string): {
       };
     default:
       return {
-        label: status.replace(/_/g, " "),
-        description:
-          "This queue status came from the backend and is shown without invented frontend meaning.",
+        label: normalizedStatus ? normalizedStatus.replace(/_/g, " ") : "Unknown",
+        description: "Current waiting-list status for this entry.",
         toneClassName: "border-border bg-muted text-muted-foreground",
       };
   }

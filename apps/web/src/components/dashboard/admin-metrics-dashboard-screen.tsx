@@ -56,7 +56,7 @@ interface QuickLinkItem {
 const QUICK_LINKS: QuickLinkItem[] = [
   {
     title: "Circulation",
-    summary: "Active, overdue & returned loan supervision.",
+    summary: "Review active and overdue books.",
     href: "/admin/circulation",
     icon: LibraryBig,
     gradient: "from-violet-500/10 to-purple-600/5",
@@ -64,7 +64,7 @@ const QUICK_LINKS: QuickLinkItem[] = [
   },
   {
     title: "Fines",
-    summary: "Unsettled balances & overdue-linked records.",
+    summary: "Review unpaid and cleared fines.",
     href: "/admin/fines",
     icon: CreditCard,
     gradient: "from-amber-500/10 to-orange-600/5",
@@ -72,7 +72,7 @@ const QUICK_LINKS: QuickLinkItem[] = [
   },
   {
     title: "Catalog",
-    summary: "Staff inventory & book management.",
+    summary: "Manage books and availability.",
     href: "/admin/catalog",
     icon: BookCopy,
     gradient: "from-emerald-500/10 to-teal-600/5",
@@ -80,7 +80,7 @@ const QUICK_LINKS: QuickLinkItem[] = [
   },
   {
     title: "Users",
-    summary: "Administrative user-management module.",
+    summary: "Manage user accounts and roles.",
     href: "/admin/users",
     icon: Users,
     gradient: "from-blue-500/10 to-indigo-600/5",
@@ -88,7 +88,7 @@ const QUICK_LINKS: QuickLinkItem[] = [
   },
   {
     title: "Documents",
-    summary: "Institutional documents & processing state.",
+    summary: "Review document uploads and status.",
     href: "/admin/documents",
     icon: FileText,
     gradient: "from-rose-500/10 to-pink-600/5",
@@ -96,7 +96,7 @@ const QUICK_LINKS: QuickLinkItem[] = [
   },
   {
     title: "Assistant",
-    summary: "AI-grounded queries against official docs.",
+    summary: "Ask the assistant using official library information.",
     href: "/admin/assistant",
     icon: BotMessageSquare,
     gradient: "from-cyan-500/10 to-sky-600/5",
@@ -132,13 +132,13 @@ function getSystemHeadline(
   isSystemQuiet: boolean,
 ): string {
   if (isSystemQuiet)
-    return "All systems quiet — no immediate attention required.";
-  if (metrics.overdueCount > 0) return "Overdue loans need your attention.";
+    return "Nothing needs attention right now.";
+  if (metrics.overdueCount > 0) return "Overdue books need review.";
   if (metrics.queuePressure.length > 0)
-    return "Reader demand is concentrating.";
+    return "Waiting list activity needs review.";
   if (metrics.activeBorrowCount > 0)
-    return "Circulation active — no escalation.";
-  return "Ready for the next operational review.";
+    return "Books are currently borrowed.";
+  return "System is active.";
 }
 
 /* ─────────────────────────── Animated Counter ──────────────────────────── */
@@ -416,7 +416,7 @@ function DashboardErrorState(props: {
   );
 }
 
-/* ──────────────────── Quick Navigation Card ──────────────────────── */
+/* ──────────────────── Manage System Card ──────────────────────── */
 
 function QuickNavCard({ item }: { item: QuickLinkItem }): React.JSX.Element {
   const Icon = item.icon;
@@ -543,7 +543,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         <div className="flex flex-wrap items-center gap-3">
                           <Badge className="rounded-full bg-primary/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-primary shadow-none hover:bg-primary/12">
                             <Zap className="mr-1.5 h-3 w-3" />
-                            Admin Command Center
+                            Admin Dashboard
                           </Badge>
                         </div>
                         <div className="space-y-2">
@@ -586,8 +586,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         <SystemPulse isQuiet={metricsQuery.isSystemQuiet} />
                         <span className="text-[13px] font-medium text-foreground">
                           {metricsQuery.isSystemQuiet
-                            ? "System Quiet"
-                            : "System Active"}
+                            ? "Nothing needs attention"
+                            : "System is running"}
                         </span>
                       </div>
                       <div className="h-4 w-px bg-border/60" />
@@ -600,7 +600,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         <Activity className="h-3.5 w-3.5" />
                         <span>
                           {metricsQuery.isSystemQuiet
-                            ? "No hotspots"
+                            ? "No urgent items"
                             : `${metrics.activeBorrowCount} active`}
                         </span>
                       </div>
@@ -619,8 +619,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   formattedValue={formatCount(metrics.activeBorrowCount)}
                   summary={
                     metrics.activeBorrowCount > 0
-                      ? "Current circulation load still out with borrowers."
-                      : "No live borrow workload is open right now."
+                      ? "Books currently borrowed by readers."
+                      : "No books are currently borrowed."
                   }
                   icon={LibraryBig}
                   tone="primary"
@@ -635,8 +635,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   formattedValue={formatCount(metrics.overdueCount)}
                   summary={
                     metrics.overdueCount > 0
-                      ? "Inspect circulation to check borrower & return state."
-                      : "No overdue loans currently need intervention."
+                      ? "Review overdue books and follow up with borrowers."
+                      : "No overdue books currently need review."
                   }
                   icon={ShieldAlert}
                   tone="warning"
@@ -650,8 +650,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   formattedValue={formatMoney(metrics.totalPendingFines)}
                   summary={
                     metrics.totalPendingFines > 0
-                      ? "Unsettled balance is still open across the system."
-                      : "No pending fine balance is currently outstanding."
+                      ? "Unpaid fines are currently pending."
+                      : "No unpaid fines right now."
                   }
                   icon={CreditCard}
                   tone="fine"
@@ -666,17 +666,17 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
             <div className="grid gap-5 ">
               {/* LEFT COLUMN */}
               <div className="grid gap-5">
-                {/* Activity Contour */}
+                {/* Borrow activity */}
                 <ScrollReveal direction="up" delayMs={120}>
                   <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5">
                     <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
-                            Catalog Momentum
+                            Book Activity
                           </p>
                           <CardTitle className="text-xl font-black tracking-tight">
-                            Activity contour
+                            Borrow activity
                           </CardTitle>
                         </div>
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -684,15 +684,14 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         </div>
                       </div>
                       <CardDescription className="px-0 text-[13px] leading-relaxed">
-                        Ranked borrow volume across the most active titles.
-                        Shape reflects momentum, not time-series.
+                        Borrow activity across the most active titles.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 py-6">
                       <DashboardActivityContour
                         items={popularChartItems}
-                        emptyTitle="No activity contour yet"
-                        emptyMessage="Borrow activity has not yet produced a ranked contour of popular titles."
+                        emptyTitle="No borrowing activity yet"
+                        emptyMessage="Most-borrowed books will appear here when borrowing records are available."
                         valueFormatter={(value) =>
                           `${formatCount(value)} borrows`
                         }
@@ -738,17 +737,17 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
 
               {/* RIGHT COLUMN */}
               <div className="grid gap-5">
-                {/* Pressure Map */}
+                {/* Waiting list overview */}
                 <ScrollReveal direction="up" delayMs={100}>
                   <Card className="overflow-hidden rounded-2xl border-danger/12 bg-card/95 py-0 shadow-sm shadow-danger/5">
                     <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-danger">
-                            Operational Attention
+                            Needs Attention
                           </p>
                           <CardTitle className="text-xl font-black tracking-tight">
-                            Pressure map
+                            Waiting list overview
                           </CardTitle>
                         </div>
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/10 text-danger">
@@ -756,7 +755,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         </div>
                       </div>
                       <CardDescription className="px-0 text-[13px] leading-relaxed">
-                        Queue demand and overdue pressure clustering.
+                        Review overdue books and waiting list activity.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 px-6 py-6">
@@ -764,7 +763,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         items={queueChartItems}
                         totalLabel="Waiting readers"
                         totalValue={formatCount(totalWaitingReaders)}
-                        emptyLabel="No queue pressure currently"
+                        emptyLabel="No waiting readers right now"
                         valueFormatter={(value) =>
                           `${formatCount(value)} waiting`
                         }
@@ -778,7 +777,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                               <ShieldAlert className="h-3.5 w-3.5" />
                             </div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-danger">
-                              Overdue pressure
+                              Overdue books
                             </p>
                           </div>
                           <p className="mt-2 font-display text-2xl font-black tracking-tight text-foreground">
@@ -786,8 +785,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                           </p>
                           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                             {metrics.overdueCount > 0
-                              ? "Open circulation first — the overdue set is the strongest immediate workload."
-                              : "No overdue records need intervention."}
+                              ? "Open circulation first and review overdue books."
+                              : "No overdue books need action."}
                           </p>
                         </div>
 
@@ -797,17 +796,17 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                               <Activity className="h-3.5 w-3.5" />
                             </div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-warning">
-                              Queue hotspot
+                              Top waiting list book
                             </p>
                           </div>
                           <p className="mt-2 text-sm font-bold text-foreground">
                             {metricsQuery.topQueuedBook?.title ??
-                              "No queue hotspot"}
+                              "No waiting list hotspot"}
                           </p>
                           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                             {metricsQuery.topQueuedBook
-                              ? `${formatCount(metricsQuery.topQueuedBook.waitingCount)} readers waiting on the highest-pressure title.`
-                              : "No titles currently have a waiting queue."}
+                              ? `${formatCount(metricsQuery.topQueuedBook.waitingCount)} readers are waiting for this book.`
+                              : "No books currently have a waiting list."}
                           </p>
                         </div>
                       </div>
@@ -815,17 +814,17 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                   </Card>
                 </ScrollReveal>
 
-                {/* Queue Pressure Bar Chart */}
+                {/* Waiting List Activity Bar Chart */}
                 <ScrollReveal direction="up" delayMs={180}>
                   <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5">
                     <CardHeader className="gap-2 border-b border-border/40 px-6 py-5">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
                           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
-                            Queue Pressure
+                            Waiting List Activity
                           </p>
                           <CardTitle className="text-xl font-black tracking-tight">
-                            Highest demand
+                            Books with waiting readers
                           </CardTitle>
                         </div>
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -833,14 +832,14 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                         </div>
                       </div>
                       <CardDescription className="px-0 text-[13px] leading-relaxed">
-                        Direct comparison of current demand hotspots.
+                        Books currently requested by waiting readers.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-6 py-6">
                       <DashboardBarChart
                         items={queueChartItems}
-                        emptyTitle="No queue pressure currently"
-                        emptyMessage="There are currently no books with readers waiting in the queue."
+                        emptyTitle="No waiting readers right now"
+                        emptyMessage="There are currently no books with readers waiting."
                         valueFormatter={(value) =>
                           `${formatCount(value)} waiting`
                         }
@@ -851,7 +850,7 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
               </div>
             </div>
 
-            {/* ───── QUICK NAVIGATION ───── */}
+            {/* ───── Manage System ───── */}
             <ScrollReveal direction="up" delayMs={200}>
               <div className="space-y-4 pb-3">
                 <div className="space-y-1 px-1">
@@ -860,11 +859,11 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
                       <ArrowRight className="h-4 w-4" />
                     </div>
                     <h2 className="text-lg font-black tracking-tight text-foreground">
-                      Quick Navigation
+                      Manage System
                     </h2>
                   </div>
                   <p className="text-[13px] text-muted-foreground">
-                    Jump to the workspace that owns the next operational step.
+                    Open the section you need next.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

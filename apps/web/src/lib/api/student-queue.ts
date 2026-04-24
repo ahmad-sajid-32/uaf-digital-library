@@ -131,6 +131,7 @@ function normalizeQueueItem(item: RawStudentQueueItem): StudentQueueItem {
       : typeof item.queue_position === "number"
         ? item.queue_position
         : null;
+  const normalizedStatus = String(item.status).trim().toLowerCase();
 
   if (resolvedPosition === null) {
     throw new Error("Backend returned a queue row without a queue position.");
@@ -139,7 +140,7 @@ function normalizeQueueItem(item: RawStudentQueueItem): StudentQueueItem {
   return {
     book_id: item.book_id,
     title: item.title,
-    status: item.status,
+    status: normalizedStatus,
     position: resolvedPosition,
     notified_at: item.notified_at,
     hold_expires_at: item.hold_expires_at,

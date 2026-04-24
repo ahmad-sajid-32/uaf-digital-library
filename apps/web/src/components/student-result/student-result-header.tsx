@@ -24,10 +24,10 @@ interface StudentResultHeaderProps {
 export function StudentResultHeader({
   result,
   gpaSummary,
-  scopeBadgeLabel = "Protected result",
-  identityHelperText = "Identity is rendered from the backend result payload only.",
-  registrationHelperText = "Registration is shown exactly as returned by the academic result payload.",
-  summaryHelperText = "This screen shows academic result truth without client-side recomputation.",
+  scopeBadgeLabel = "Student result",
+  identityHelperText = "Student details from your result record.",
+  registrationHelperText = "Registration number from your result record.",
+  summaryHelperText = "Academic summary from your available semesters.",
 }: StudentResultHeaderProps) {
   const calculationPresentation = getStudentResultCalculationPresentation(
     gpaSummary.calculation_status,

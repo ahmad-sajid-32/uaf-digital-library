@@ -34,15 +34,16 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentDashboard } from "@/hooks/useStudentDashboard";
-import {
-  getStudentBorrowDuePresentation,
-} from "@/lib/student-borrows";
+import { getStudentBorrowDuePresentation } from "@/lib/student-borrows";
 import {
   formatStudentFineAmount,
   formatStudentFineDateTime,
   getStudentFineStatusPresentation,
 } from "@/lib/student-fines";
-import { formatStudentQueueDateTime, getStudentQueueStatusPresentation } from "@/lib/student-queue";
+import {
+  formatStudentQueueDateTime,
+  getStudentQueueStatusPresentation,
+} from "@/lib/student-queue";
 import { cn } from "@/lib/utils";
 
 const STUDENT_DASHBOARD_QUICK_LINKS: DashboardQuickLinkItem[] = [
@@ -72,7 +73,7 @@ const STUDENT_DASHBOARD_QUICK_LINKS: DashboardQuickLinkItem[] = [
   },
   {
     title: "View Result",
-    summary: "Open your protected academic result surface.",
+    summary: "Open your result page.",
     href: "/student/result",
     icon: GraduationCap,
   },
@@ -141,8 +142,8 @@ function DashboardFailureState(props: {
           </p>
           {props.hasStaleData ? (
             <p className="text-sm text-muted-foreground">
-              The previous dashboard state is still visible. Refresh to fetch
-              the latest student overview.
+              The previous dashboard information is still visible. Refresh to
+              load the latest updates.
             </p>
           ) : null}
         </div>
@@ -226,15 +227,14 @@ function QuietState(): React.JSX.Element {
               variant="outline"
               className="rounded-full border-emerald-500/20 bg-emerald-500/10 text-emerald-700"
             >
-              Quiet State
+              All Clear
             </Badge>
             <p className="text-xl font-black tracking-tight text-foreground">
-              No immediate library pressure needs your attention right now.
+              Nothing needs attention right now.
             </p>
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              Your dashboard is currently clear of overdue borrows, pending
-              fines, active holds, and queue pressure. Use the quick links below
-              whenever you want to open a specific student module.
+              You currently have no overdue books, pending fines, waiting-list
+              entries, or pickup-ready books.
             </p>
           </div>
           <Button asChild variant="outline" className="rounded-xl">
@@ -274,7 +274,11 @@ function AttentionCard(props: {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-5 py-5">
-        <Button asChild variant="outline" className="w-full justify-between rounded-xl">
+        <Button
+          asChild
+          variant="outline"
+          className="w-full justify-between rounded-xl"
+        >
           <Link href={props.href}>
             {props.actionLabel}
             <ArrowRight className="h-4 w-4" />
@@ -352,16 +356,18 @@ function ResultSummaryCard(props: {
             Result Overview
           </p>
           <CardTitle className="text-2xl font-black tracking-tight">
-            Academic summary is not included in this dashboard payload yet.
+            Academic Result
           </CardTitle>
           <CardDescription className="px-0 text-sm leading-6">
-            The current result pipeline stays separate from this first-pass
-            dashboard read model, so academic detail still belongs to the
-            protected Result module.
+            Open your result page to view academic details.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 py-6">
-          <Button asChild variant="outline" className="w-full justify-between rounded-xl">
+          <Button
+            asChild
+            variant="outline"
+            className="w-full justify-between rounded-xl"
+          >
             <Link href="/student/result">
               Open Result
               <ArrowRight className="h-4 w-4" />
@@ -382,8 +388,7 @@ function ResultSummaryCard(props: {
           Academic summary
         </CardTitle>
         <CardDescription className="px-0 text-sm leading-6">
-          These result values are shown exactly as returned by the backend
-          dashboard contract.
+          Academic details from your result page.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 px-6 py-6 sm:grid-cols-3">
@@ -426,12 +431,9 @@ export function StudentDashboardScreen(): React.JSX.Element {
     <PageContainer
       eyebrow="Student Dashboard"
       title="Dashboard"
-      description="See your current library state from one read-only overview without cloning the deeper student modules."
+      description="View your borrowed books, due dates, fines, waiting list, and pickup status."
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary" className="rounded-full">
-            Overview only
-          </Badge>
           <Button
             type="button"
             variant="outline"
@@ -456,7 +458,9 @@ export function StudentDashboardScreen(): React.JSX.Element {
           <DashboardLoadingState />
         ) : null}
 
-        {!dashboardState.loading && dashboardState.error && !dashboardState.hasData ? (
+        {!dashboardState.loading &&
+        dashboardState.error &&
+        !dashboardState.hasData ? (
           <DashboardFailureState
             hasStaleData={false}
             message={dashboardState.error}
@@ -476,16 +480,16 @@ export function StudentDashboardScreen(): React.JSX.Element {
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <SummaryMetricCard
-                title="Active Borrows"
+                title="Borrowed Books"
                 value={dashboard.summary.active_borrow_count}
-                summary="Books currently in your active borrow workspace."
+                summary="Books currently borrowed by you."
                 href="/student/borrows"
                 actionLabel="Open Borrows"
                 icon={BookCopy}
                 tone="primary"
               />
               <SummaryMetricCard
-                title="Overdue"
+                title="Overdue Books"
                 value={dashboard.summary.overdue_borrow_count}
                 summary="Active loans whose due date has already passed."
                 href="/student/borrows"
@@ -511,18 +515,18 @@ export function StudentDashboardScreen(): React.JSX.Element {
                 }
               />
               <SummaryMetricCard
-                title="In Queue"
+                title="Waiting List"
                 value={dashboard.summary.active_queue_count}
-                summary="Queue entries still active under backend queue state."
+                summary="Books you are waiting for."
                 href="/student/queue"
                 actionLabel="Open Queue"
                 icon={ScrollText}
                 tone="primary"
               />
               <SummaryMetricCard
-                title="Hold Ready"
+                title="Ready for Pickup"
                 value={dashboard.summary.hold_assigned_count}
-                summary="Queue entries already promoted into notified hold state."
+                summary="Books reserved for pickup."
                 href="/student/queue"
                 actionLabel="Review Holds"
                 icon={ShieldCheck}
@@ -561,7 +565,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   }
                 />
                 <AttentionCard
-                  eyebrow="Hold Ready"
+                  eyebrow="Ready for Pickup"
                   title={
                     dashboard.current_hold
                       ? dashboard.current_hold.title
@@ -570,7 +574,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   description={
                     dashboard.current_hold
                       ? `Hold expires ${formatStudentQueueDateTime(dashboard.current_hold.hold_expires_at)}`
-                      : "No current queue entry is in notified hold state."
+                      : "No books are currently ready for pickup."
                   }
                   href="/student/queue"
                   actionLabel="Open Queue"
@@ -581,7 +585,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   }
                 />
                 <AttentionCard
-                  eyebrow="Fine Pressure"
+                  eyebrow="Pending Fines"
                   title={
                     dashboard.summary.pending_fine_count > 0
                       ? formatStudentFineAmount(
@@ -607,13 +611,13 @@ export function StudentDashboardScreen(): React.JSX.Element {
 
             <div className="grid gap-4 xl:grid-cols-3">
               <PreviewSection
-                eyebrow="Borrow Preview"
-                title="Active borrows"
-                description="A bounded preview of the books currently in your active borrow workspace."
+                eyebrow="Current Borrows"
+                title="Borrowed books"
+                description="A quick view of books currently issued to you."
                 href="/student/borrows"
                 actionLabel="View all borrows"
                 emptyTitle="No active borrows are visible."
-                emptyMessage="Borrowing starts in the catalog, and active items appear here once the backend confirms them."
+                emptyMessage="Books you borrow will appear here."
                 hasItems={dashboard.active_borrows_preview.length > 0}
               >
                 {dashboard.active_borrows_preview.map((item) => {
@@ -665,13 +669,13 @@ export function StudentDashboardScreen(): React.JSX.Element {
               </PreviewSection>
 
               <PreviewSection
-                eyebrow="Queue Preview"
-                title="Queue status"
-                description="A bounded preview of active queue entries and hold-ready items."
+                eyebrow="Waiting List"
+                title="Waiting list status"
+                description="A quick view of books you are waiting for and books ready for pickup."
                 href="/student/queue"
                 actionLabel="View all queue entries"
                 emptyTitle="No active queue entries are visible."
-                emptyMessage="Waiting and hold-ready entries appear here once the backend creates them."
+                emptyMessage="Waiting-list and pickup-ready books will appear here."
                 hasItems={dashboard.queue_preview.length > 0}
               >
                 {dashboard.queue_preview.map((item) => {
@@ -690,12 +694,18 @@ export function StudentDashboardScreen(): React.JSX.Element {
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge
                               variant="outline"
-                              className={cn("rounded-full", status.toneClassName)}
+                              className={cn(
+                                "rounded-full",
+                                status.toneClassName,
+                              )}
                             >
                               {status.label}
                             </Badge>
                             {item.position ? (
-                              <Badge variant="secondary" className="rounded-full">
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full"
+                              >
                                 Position #{item.position}
                               </Badge>
                             ) : null}
@@ -719,13 +729,13 @@ export function StudentDashboardScreen(): React.JSX.Element {
               </PreviewSection>
 
               <PreviewSection
-                eyebrow="Fine Preview"
+                eyebrow="Fines"
                 title="Pending fines"
-                description="A bounded preview of unresolved fine records that still need your attention."
+                description="A quick view of fine records linked to your account."
                 href="/student/fines"
                 actionLabel="View all fines"
                 emptyTitle="No pending fines are visible."
-                emptyMessage="When unresolved fines exist, they appear here with backend-owned amounts and statuses."
+                emptyMessage="Fines will appear here when any are pending."
                 hasItems={dashboard.fine_preview.length > 0}
               >
                 {dashboard.fine_preview.map((item) => {
@@ -744,7 +754,10 @@ export function StudentDashboardScreen(): React.JSX.Element {
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge
                               variant="outline"
-                              className={cn("rounded-full", status.toneClassName)}
+                              className={cn(
+                                "rounded-full",
+                                status.toneClassName,
+                              )}
                             >
                               {status.label}
                             </Badge>
@@ -761,7 +774,8 @@ export function StudentDashboardScreen(): React.JSX.Element {
                         </Link>
                       </div>
                       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                        Created {formatStudentFineDateTime(item.fine_created_at)}
+                        Created{" "}
+                        {formatStudentFineDateTime(item.fine_created_at)}
                       </p>
                     </div>
                   );
@@ -777,11 +791,11 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   Quick Links
                 </p>
                 <CardTitle className="text-2xl font-black tracking-tight">
-                  Move into the detailed student modules
+                  Open your next section
                 </CardTitle>
                 <CardDescription className="px-0 text-sm leading-6">
-                  The dashboard stays overview-first. Use these shortcuts when
-                  you need the full student workspace behind each area.
+                  Use these shortcuts to open catalog, borrows, queue, fines,
+                  results, assistant, or profile.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-6 py-6">

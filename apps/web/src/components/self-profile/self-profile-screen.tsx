@@ -143,8 +143,8 @@ export function SelfProfileScreen({
           <SelfProfileLoadingState />
         ) : profileState.unavailable || !profile ? (
           <SelfProfileFailureState
-            heading="Unable to resolve your protected profile."
-            message="The current self-service profile screen needs authenticated identity state before it can render or submit real account mutations."
+            heading="Unable to load your profile."
+            message="Please sign in again and retry."
             onRetry={profileState.retry}
           />
         ) : (
@@ -181,9 +181,8 @@ export function SelfProfileScreen({
                           Delete this account permanently
                         </p>
                         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                          This calls the real `DELETE /api/me` route. It is not a
-                          soft preference change, and it should not be triggered
-                          casually.
+                          This permanently deletes your account and related
+                          library records.
                         </p>
                       </div>
                     </div>
