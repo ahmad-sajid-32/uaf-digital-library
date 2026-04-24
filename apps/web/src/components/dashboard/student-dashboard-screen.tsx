@@ -626,7 +626,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   return (
                     <div
                       key={item.transaction_id}
-                      className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4"
+                      className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
@@ -684,7 +684,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   return (
                     <div
                       key={`${item.book_id}-${item.status}`}
-                      className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4"
+                      className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
@@ -744,7 +744,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
                   return (
                     <div
                       key={item.fine_id}
-                      className="rounded-[1.5rem] border border-border/60 bg-background/55 px-4 py-4"
+                      className="rounded-3xl border border-border/60 bg-background/55 px-4 py-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
@@ -785,7 +785,7 @@ export function StudentDashboardScreen(): React.JSX.Element {
 
             <ResultSummaryCard summary={dashboard.result_summary} />
 
-            <Card className="rounded-[2rem] border-border/60 bg-card/95 py-0 shadow-none">
+            <Card className="rounded-4xl border-border/60 bg-card/95 py-0 shadow-none">
               <CardHeader className="gap-2 border-b border-border/60 px-6 py-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                   Quick Links
