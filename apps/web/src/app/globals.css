@@ -73,6 +73,32 @@ html {
   color-scheme: light;
   scrollbar-color: hsl(var(--primary)) hsl(var(--background));
   scrollbar-width: thin;
+  font-size: 16px;
+}
+
+body {
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+p {
+  font-size: 1.0625rem;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.75rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+h4 {
+  font-size: 1.25rem;
 }
 
 html.dark {
@@ -237,4 +263,75 @@ body {
     -5px 0 0 hsl(var(--accent)),
     5px 0 0 hsl(var(--accent));
   color: hsl(var(--accent-foreground));
+}
+
+/* Glassmorphic Effects for Titles and Headers */
+.page-title-glass,
+.header-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1.75rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dark .page-title-glass,
+.dark .header-glass {
+  background: rgba(30, 30, 40, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Card header with glass effect */
+.card-header-glass {
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.dark .card-header-glass {
+  background: rgba(30, 30, 40, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Global text size increases for better readability */
+.text-page-title {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .text-page-title {
+    font-size: 2.5rem;
+  }
+}
+
+.text-section-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .text-section-title {
+    font-size: 1.75rem;
+  }
+}
+
+.text-dialog-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .text-dialog-title {
+    font-size: 1.75rem;
+  }
 }
