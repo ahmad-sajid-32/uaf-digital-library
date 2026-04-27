@@ -4,9 +4,11 @@
  *
  * Purpose:
  * - Replace the old badge-heavy card treatment with cleaner chat hierarchy.
- * - Keep assistant citations visually attached to the assistant answer.
+ * - Keep assistant citations visually attached to supported official-document answers.
  * - Preserve distinct user and assistant visual rhythm without turning every
  *   turn into a dashboard widget.
+ * - Avoid showing document-grounding fallback UI for general or clarification
+ *   responses.
  */
 
 "use client";
@@ -16,6 +18,12 @@ import { BotMessageSquare, LoaderCircle } from "lucide-react";
 
 import { AssistantCitations } from "@/components/assistant/assistant-citations";
 import type { AssistantMessageItem } from "@/lib/api/assistant";
+
+const STRICT_DOCUMENT_FALLBACK_ANSWER =
+  "Information not found in official documents.";
+
+const GENERATION_TEMPORARY_FAILURE_ANSWER =
+  "I found relevant official documents, but I can't generate an answer right now. Please try again.";
 
 function formatTimestamp(value: string): string {
   const parsed = new Date(value);
@@ -30,15 +38,58 @@ function formatTimestamp(value: string): string {
   }).format(parsed);
 }
 
+function isRagMessage(message: AssistantMessageItem): boolean {
+  return String(message.intent_profile ?? "").startsWith("rag:");
+}
+
+function hasCitations(message: AssistantMessageItem): boolean {
+  return Array.isArray(message.citations) && message.citations.length > 0;
+}
+
+function shouldShowCitations(message: AssistantMessageItem): boolean {
+  return (
+    message.role === "assistant" &&
+    !Boolean(message.fallback_used) &&
+    hasCitations(message)
+  );
+}
+
+function resolveDocumentFallbackNotice(
+  message: AssistantMessageItem,
+): string | null {
+  if (message.role !== "assistant") {
+    return null;
+  }
+
+  if (!Boolean(message.fallback_used)) {
+    return null;
+  }
+
+  if (!isRagMessage(message)) {
+    return null;
+  }
+
+  const content = message.content.trim();
+
+  if (content === GENERATION_TEMPORARY_FAILURE_ANSWER) {
+    return "Relevant official documents were found, but the assistant could not generate the final answer for this turn.";
+  }
+
+  if (content === STRICT_DOCUMENT_FALLBACK_ANSWER) {
+    return "No matching official document content was found for this question.";
+  }
+
+  return "This answer used the official-document fallback for this turn.";
+}
+
 export function AssistantMessage({
   message,
 }: {
   message: AssistantMessageItem;
 }): React.JSX.Element {
   const isUser = message.role === "user";
-  const shouldShowFallbackState = !isUser && Boolean(message.fallback_used);
-  const shouldShowCitations =
-    !isUser && !shouldShowFallbackState && message.citations.length > 0;
+  const documentFallbackNotice = resolveDocumentFallbackNotice(message);
+  const renderCitations = shouldShowCitations(message);
 
   if (isUser) {
     return (
@@ -65,21 +116,21 @@ export function AssistantMessage({
             <BotMessageSquare className="h-3.5 w-3.5 text-primary" />
             <span>Assistant</span>
           </div>
+
           <p className="whitespace-pre-wrap text-sm leading-7 text-foreground sm:text-[0.95rem]">
             {message.content}
           </p>
-          {shouldShowFallbackState ? (
+
+          {documentFallbackNotice ? (
             <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/8 px-3 py-3 text-sm leading-6 text-amber-950 dark:text-amber-100">
-              This answer used the assistant fallback because it could not
-              ground the response in the retrieved official university documents
-              for this turn.
+              {documentFallbackNotice}
             </div>
           ) : null}
         </div>
 
-        {shouldShowCitations ? (
+        {/* {renderCitations ? (
           <AssistantCitations citations={message.citations} />
-        ) : null}
+        ) : null} */}
 
         <p className="px-1 text-xs text-muted-foreground">
           {formatTimestamp(message.created_at)}
@@ -112,7 +163,7 @@ export function AssistantPendingTurn({
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <LoaderCircle className="h-4 w-4 animate-spin" />
-            <span>Searching documents when needed...</span>
+            <span>Preparing your answer...</span>
           </div>
         </div>
       </div>

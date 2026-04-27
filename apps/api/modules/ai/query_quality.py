@@ -6,6 +6,10 @@ Purpose:
 - Validate and normalize the current user query before intent detection.
 - Prevent typo-heavy, empty, damaged, or under-specified input from being
   incorrectly routed into RAG, follow-up handling, or general generation.
+- Allow clear arithmetic/general questions such as "What is 2 + 2?" to reach
+  normal assistant routing.
+- Allow assistant identity/help questions such as "What are you?" to reach
+  intent detection instead of being incorrectly rejected as vague.
 - Keep this layer deterministic and dependency-free so routing remains stable.
 
 Integration notes:
@@ -29,6 +33,14 @@ CONVERSATIONAL_SHORT_PHRASES = {
     "okay",
     "thanks",
     "thank you",
+}
+
+ASSISTANT_HELP_PHRASES = {
+    "who are you",
+    "what are you",
+    "how can you help",
+    "what can you do",
+    "what do you do",
 }
 
 VAGUE_EXACT_QUERIES = {
@@ -75,6 +87,20 @@ REFERENCE_TERMS = {
     "above",
     "also",
     "then",
+}
+
+ARITHMETIC_WORDS = {
+    "calculate",
+    "compute",
+    "divide",
+    "divided",
+    "minus",
+    "multiply",
+    "multiplied",
+    "plus",
+    "solve",
+    "subtract",
+    "times",
 }
 
 STOP_WORDS = {
@@ -165,6 +191,27 @@ def _is_short_conversational_query(lowered_query: str) -> bool:
     return lowered_query in CONVERSATIONAL_SHORT_PHRASES
 
 
+def _looks_like_assistant_help_query(lowered_query: str) -> bool:
+    """
+    Detect assistant identity/help queries that should pass quality screening.
+
+    These queries can contain only stop words after token filtering. Without
+    this allow-list, questions such as "What are you?" are incorrectly rejected
+    as vague before the intent detector can classify them as assistant help.
+
+    Args:
+        lowered_query (str): Lowercase normalized query.
+
+    Returns:
+        bool: True when the query is an assistant help or identity question.
+    """
+
+    if lowered_query in ASSISTANT_HELP_PHRASES:
+        return True
+
+    return any(lowered_query.startswith(f"{phrase} ") for phrase in ASSISTANT_HELP_PHRASES)
+
+
 def _looks_like_reference_follow_up(lowered_query: str) -> bool:
     """
     Detect whether the query is shaped like a possible follow-up.
@@ -245,6 +292,35 @@ def _looks_like_damaged_query(query: str) -> bool:
     return False
 
 
+def _looks_like_arithmetic_query(lowered_query: str) -> bool:
+    """
+    Detect clear arithmetic questions that should pass the quality gate.
+
+    This prevents queries like "What is 2 + 2?" from being rejected as vague
+    after stop-word filtering removes "what" and "is".
+
+    Args:
+        lowered_query (str): Lowercase normalized query.
+
+    Returns:
+        bool: True when the query contains enough arithmetic structure to route
+        as a valid general question.
+    """
+
+    numbers = re.findall(r"\d+(?:\.\d+)?", lowered_query)
+
+    if len(numbers) < 2:
+        return False
+
+    has_symbol_operator = bool(re.search(r"[+\-*/×÷=]", lowered_query))
+    has_word_operator = bool(set(lowered_query.split()) & ARITHMETIC_WORDS)
+
+    if has_symbol_operator or has_word_operator:
+        return True
+
+    return False
+
+
 def _significant_tokens(lowered_query: str) -> set[str]:
     """
     Extract meaningful tokens for under-specification checks.
@@ -275,6 +351,12 @@ def _is_vague_query(lowered_query: str) -> bool:
     Returns:
         bool: True when the query should return clarification.
     """
+
+    if _looks_like_assistant_help_query(lowered_query):
+        return False
+
+    if _looks_like_arithmetic_query(lowered_query):
+        return False
 
     if lowered_query in VAGUE_EXACT_QUERIES:
         return True
