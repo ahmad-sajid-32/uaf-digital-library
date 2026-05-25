@@ -188,6 +188,48 @@ class StorageService:
         return signed_read_url
 
     @classmethod
+    async def upload_object(
+        cls,
+        bucket_name: str,
+        object_path: str,
+        content: bytes,
+        *,
+        content_type: str,
+        upsert: bool = True,
+    ) -> None:
+        """
+        Upload an object to Supabase Storage using the backend service role.
+        """
+
+        encoded_path = cls._encode_object_path(object_path)
+        endpoint = (
+            f"{cls._base_url()}/object/"
+            f"{quote(bucket_name, safe='')}/{encoded_path}"
+        )
+        headers = cls._headers()
+        headers["Content-Type"] = content_type
+        headers["x-upsert"] = "true" if upsert else "false"
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                endpoint,
+                headers=headers,
+                content=content,
+            )
+
+        if response.is_error:
+            logger.error(
+                "STORAGE: object upload failed",
+                extra={
+                    "bucket_name": bucket_name,
+                    "storage_object_path": object_path,
+                    "status_code": response.status_code,
+                    "error": response.text[:500],
+                },
+            )
+            raise RuntimeError("Storage request failed")
+
+    @classmethod
     async def download_object(cls, bucket_name: str, object_path: str) -> bytes:
         """
         Download an object from private storage for backend indexing.

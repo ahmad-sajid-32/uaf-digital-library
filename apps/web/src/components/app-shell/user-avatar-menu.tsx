@@ -17,7 +17,7 @@ import { LogOut } from "lucide-react";
 
 import type { UserAvatarMenuProps } from "@/components/app-shell/contracts";
 import { getAppShellIcon } from "@/components/app-shell/icon-map";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SelfAvatarImage } from "@/components/self-profile/self-avatar-image";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,16 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-function toInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-
-  if (parts.length === 0) {
-    return "U";
-  }
-
-  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
-}
 
 export function UserAvatarMenu({
   user,
@@ -60,11 +50,12 @@ export function UserAvatarMenu({
             </p>
           </div>
 
-          <Avatar className="size-10 border border-primary/15 bg-primary/10">
-            <AvatarFallback className="bg-primary/10 font-display text-sm font-black text-primary">
-              {toInitials(user.fullName)}
-            </AvatarFallback>
-          </Avatar>
+          <SelfAvatarImage
+            imageUrl={user.avatarImageUrl}
+            fullName={user.fullName}
+            email={user.email}
+            size="sm"
+          />
         </button>
       </DropdownMenuTrigger>
 

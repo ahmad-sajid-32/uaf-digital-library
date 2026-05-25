@@ -11,7 +11,16 @@ Responsibilities:
 
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
@@ -23,6 +32,9 @@ from modules.me.schemas import (
     FINES_SUCCESS_EXAMPLE,
     STUDENT_DASHBOARD_SUCCESS_EXAMPLE,
     QUEUE_ENTRIES_SUCCESS_EXAMPLE,
+    SELF_AVATAR_DELETE_SUCCESS_EXAMPLE,
+    SELF_AVATAR_SUCCESS_EXAMPLE,
+    SELF_AVATAR_UPLOAD_SUCCESS_EXAMPLE,
     UPDATE_MY_PROFILE_SUCCESS_EXAMPLE,
     ActiveBorrowsData,
     ActiveBorrowsResponse,
@@ -35,6 +47,10 @@ from modules.me.schemas import (
     FinesResponse,
     QueueEntriesData,
     QueueEntriesResponse,
+    SelfAvatarData,
+    SelfAvatarDeleteResponse,
+    SelfAvatarResponse,
+    SelfAvatarUploadResponse,
     SimpleMessageResponse,
     StudentDashboardData,
     StudentDashboardResponse,
@@ -65,6 +81,15 @@ def _resolve_runtime_error_status(message: str) -> int:
         return status.HTTP_403_FORBIDDEN
     if "Profile not found" in message:
         return status.HTTP_404_NOT_FOUND
+    if "Avatar image file is too large" in message:
+        return status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    if (
+        "Invalid avatar image MIME type" in message
+        or "Avatar image file is required" in message
+    ):
+        return status.HTTP_422_UNPROCESSABLE_ENTITY
+    if "Storage request failed" in message:
+        return status.HTTP_502_BAD_GATEWAY
     if "Invalid full_name" in message:
         return status.HTTP_400_BAD_REQUEST
     return status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -420,6 +445,177 @@ async def get_student_dashboard(
         status=200,
         message="Student dashboard retrieved successfully",
         data=StudentDashboardData(**dashboard),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.get(
+    "/avatar",
+    response_model=SelfAvatarResponse,
+    responses={
+        200: {
+            "description": "Avatar retrieved successfully",
+            "content": {"application/json": {"example": SELF_AVATAR_SUCCESS_EXAMPLE}},
+        }
+    },
+)
+async def get_my_avatar(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> SelfAvatarResponse:
+    user_id = _require_user_id(request)
+
+    logger.info(
+        "ME: avatar request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+        },
+    )
+
+    try:
+        avatar = await MeService.get_my_avatar(user_id)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "ME: avatar request failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
+
+    return SelfAvatarResponse(
+        status=200,
+        message="Avatar retrieved successfully",
+        data=SelfAvatarData(avatar=avatar),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.post(
+    "/avatar",
+    response_model=SelfAvatarUploadResponse,
+    responses={
+        200: {
+            "description": "Avatar uploaded successfully",
+            "content": {
+                "application/json": {"example": SELF_AVATAR_UPLOAD_SUCCESS_EXAMPLE}
+            },
+        },
+        413: {"description": "Avatar image file is too large"},
+        422: {"description": "Invalid avatar image file"},
+        502: {"description": "Storage provider failure"},
+    },
+)
+async def upload_my_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> SelfAvatarUploadResponse:
+    user_id = _require_user_id(request)
+
+    logger.info(
+        "ME: avatar upload request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "uploaded_file_name": file.filename,
+            "avatar_image_mime_type": file.content_type,
+        },
+    )
+
+    try:
+        avatar = await MeService.upload_my_avatar(user_id, file)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "ME: avatar upload failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "uploaded_file_name": file.filename,
+                "avatar_image_mime_type": file.content_type,
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
+    finally:
+        await file.close()
+
+    return SelfAvatarUploadResponse(
+        status=200,
+        message="Avatar uploaded successfully",
+        data=SelfAvatarData(avatar=avatar),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.delete(
+    "/avatar",
+    response_model=SelfAvatarDeleteResponse,
+    responses={
+        200: {
+            "description": "Avatar deleted successfully",
+            "content": {
+                "application/json": {"example": SELF_AVATAR_DELETE_SUCCESS_EXAMPLE}
+            },
+        },
+        502: {"description": "Storage provider failure"},
+    },
+)
+async def delete_my_avatar(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> SelfAvatarDeleteResponse:
+    user_id = _require_user_id(request)
+
+    logger.info(
+        "ME: avatar delete request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+        },
+    )
+
+    try:
+        avatar = await MeService.delete_my_avatar(user_id)
+    except RuntimeError as exc:
+        http_status = _resolve_runtime_error_status(str(exc))
+        logger.error(
+            "ME: avatar delete failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "error": str(exc),
+                "status_code": http_status,
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=str(exc) if http_status != 500 else "Internal Server Error",
+        ) from exc
+
+    return SelfAvatarDeleteResponse(
+        status=200,
+        message="Avatar deleted successfully",
+        data=SelfAvatarData(avatar=avatar),
         timestamp_ms=int(time.time() * 1000),
     )
 

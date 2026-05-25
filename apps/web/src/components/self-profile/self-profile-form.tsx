@@ -52,7 +52,7 @@ export function SelfProfileForm({
             Self service
           </Badge>
           <Badge variant="outline" className="rounded-full">
-            1 editable field
+            Identity details
           </Badge>
         </div>
         <div className="space-y-2">
@@ -125,7 +125,7 @@ export function SelfProfileForm({
               placeholder="Enter your full name"
             />
             <p className="text-sm leading-6 text-muted-foreground">
-              Only full name can be edited on this screen.
+              This field updates the display name shown across the app.
             </p>
           </div>
 

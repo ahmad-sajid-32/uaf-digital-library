@@ -30,6 +30,27 @@ class UpdateMyProfileRequest(BaseModel):
     )
 
 
+class SelfAvatarItem(BaseModel):
+    """
+    Current authenticated user's avatar metadata and runtime render URL.
+    """
+
+    avatar_image_path: Optional[str] = Field(
+        None,
+        example="profiles/550e8400-e29b-41d4-a716-446655440000/avatar.webp",
+    )
+    avatar_image_url: Optional[str] = Field(
+        None,
+        example="https://example.supabase.co/storage/v1/object/sign/profile-avatars/profiles/550e8400-e29b-41d4-a716-446655440000/avatar.webp?token=example",
+    )
+    avatar_image_mime_type: Optional[str] = Field(None, example="image/webp")
+    avatar_image_size_bytes: Optional[int] = Field(None, example=124000)
+    avatar_image_updated_at: Optional[datetime] = Field(
+        None,
+        example="2026-05-26T10:30:00Z",
+    )
+
+
 class ActiveBorrowItem(BaseModel):
     """
     One active borrow record for the authenticated user.
@@ -231,6 +252,10 @@ class QueueEntriesData(BaseModel):
     items: List[QueueEntryItem]
 
 
+class SelfAvatarData(BaseModel):
+    avatar: SelfAvatarItem
+
+
 class EmptyData(BaseModel):
     """
     Empty object payload for successful self-service mutations.
@@ -289,6 +314,27 @@ class StudentDashboardResponse(BaseModel):
     status: int = Field(..., example=200)
     message: str = Field(..., example="Student dashboard retrieved successfully")
     data: StudentDashboardData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
+class SelfAvatarResponse(BaseModel):
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Avatar retrieved successfully")
+    data: SelfAvatarData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
+class SelfAvatarUploadResponse(BaseModel):
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Avatar uploaded successfully")
+    data: SelfAvatarData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
+class SelfAvatarDeleteResponse(BaseModel):
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Avatar deleted successfully")
+    data: SelfAvatarData
     timestamp_ms: int = Field(..., example=1741348800000)
 
 
@@ -457,6 +503,47 @@ STUDENT_DASHBOARD_SUCCESS_EXAMPLE = {
             }
         ],
         "result_summary": None,
+    },
+    "timestamp_ms": 1741348800000,
+}
+
+SELF_AVATAR_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Avatar retrieved successfully",
+    "data": {
+        "avatar": {
+            "avatar_image_path": (
+                "profiles/550e8400-e29b-41d4-a716-446655440000/avatar.webp"
+            ),
+            "avatar_image_url": (
+                "https://example.supabase.co/storage/v1/object/sign/"
+                "profile-avatars/profiles/550e8400-e29b-41d4-a716-446655440000/"
+                "avatar.webp?token=example"
+            ),
+            "avatar_image_mime_type": "image/webp",
+            "avatar_image_size_bytes": 124000,
+            "avatar_image_updated_at": "2026-05-26T10:30:00Z",
+        }
+    },
+    "timestamp_ms": 1741348800000,
+}
+
+SELF_AVATAR_UPLOAD_SUCCESS_EXAMPLE = {
+    **SELF_AVATAR_SUCCESS_EXAMPLE,
+    "message": "Avatar uploaded successfully",
+}
+
+SELF_AVATAR_DELETE_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Avatar deleted successfully",
+    "data": {
+        "avatar": {
+            "avatar_image_path": None,
+            "avatar_image_url": None,
+            "avatar_image_mime_type": None,
+            "avatar_image_size_bytes": None,
+            "avatar_image_updated_at": None,
+        }
     },
     "timestamp_ms": 1741348800000,
 }

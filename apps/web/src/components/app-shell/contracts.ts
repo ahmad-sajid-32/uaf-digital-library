@@ -50,6 +50,7 @@ export interface AppShellUserSummary {
   userId: string;
   email: string;
   fullName: string;
+  avatarImageUrl: string | null;
   role: AppRole;
   roleLabel: string;
 }
@@ -139,6 +140,7 @@ export function toAppShellUserSummary(
     userId: auth.userId,
     email: auth.email,
     fullName: auth.fullName?.trim() || auth.email,
+    avatarImageUrl: auth.avatarImageUrl,
     role: auth.role,
     roleLabel: auth.role.charAt(0).toUpperCase() + auth.role.slice(1),
   };

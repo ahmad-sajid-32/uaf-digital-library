@@ -69,6 +69,7 @@ export function useSelfProfile(options: UseSelfProfileOptions = {}) {
     hydrated,
     refreshAuthState,
     overrideProfileDisplayName,
+    overrideProfileAvatarImageUrl,
   } = useAppAuth();
   const { recoverFromSessionFailure } = useAuthSessionActions();
 
@@ -222,6 +223,7 @@ export function useSelfProfile(options: UseSelfProfileOptions = {}) {
     try {
       await deleteMyAccount();
       overrideProfileDisplayName(null);
+      overrideProfileAvatarImageUrl(null);
 
       try {
         await signOut();
@@ -261,6 +263,7 @@ export function useSelfProfile(options: UseSelfProfileOptions = {}) {
     identity,
     options.deleteRedirectTo,
     options.deletionSuccessToastId,
+    overrideProfileAvatarImageUrl,
     overrideProfileDisplayName,
     recoverFromSessionFailure,
     refreshAuthState,

@@ -24,6 +24,7 @@ export interface AppAuthState {
   userId: string | null;
   email: string | null;
   fullName: string | null;
+  avatarImageUrl: string | null;
   role: AppRole | null;
   emailConfirmed: boolean;
   expiresAtUtc: string | null;

@@ -16,6 +16,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { SelfAvatarShellHydrator } from "@/components/app-shell/self-avatar-shell-hydrator";
 import type {
   AppShellProps,
   AppShellUserSummary,
@@ -70,6 +71,7 @@ export function AuthenticatedRoleShell({
       onLogout={handleLogout}
       defaultSidebarOpen={false}
     >
+      <SelfAvatarShellHydrator />
       {children}
     </AppShell>
   );

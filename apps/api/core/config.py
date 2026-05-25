@@ -75,6 +75,9 @@ class Settings:
         selenium_timeout_seconds (int): Browser wait timeout for scraping.
         reg_input_selector (str): Selector spec for registration number input.
         submit_selector (str): Selector spec for result submit control.
+        supabase_storage_bucket_profile_avatars (str): Private bucket for profile avatars.
+        profile_avatar_max_file_size_bytes (int): Maximum allowed avatar image size.
+        profile_avatar_signed_url_ttl_seconds (int): Signed avatar read URL lifetime.
     """
 
     database_url: str
@@ -148,6 +151,9 @@ class Settings:
     document_upload_max_file_size_bytes: int
     document_signed_read_url_ttl_seconds: int
     document_upload_stale_after_seconds: int
+    supabase_storage_bucket_profile_avatars: str
+    profile_avatar_max_file_size_bytes: int
+    profile_avatar_signed_url_ttl_seconds: int
 
 
 def _get_required_env(var_name: str) -> str:
@@ -533,6 +539,16 @@ def load_settings() -> Settings:
         ),
         document_upload_stale_after_seconds=int(
             _get_env("DOCUMENT_UPLOAD_STALE_AFTER_SECONDS", "86400")
+        ),
+        supabase_storage_bucket_profile_avatars=_get_env(
+            "SUPABASE_STORAGE_BUCKET_PROFILE_AVATARS",
+            "profile-avatars",
+        ),
+        profile_avatar_max_file_size_bytes=int(
+            _get_env("PROFILE_AVATAR_MAX_FILE_SIZE_BYTES", "2097152")
+        ),
+        profile_avatar_signed_url_ttl_seconds=int(
+            _get_env("PROFILE_AVATAR_SIGNED_URL_TTL_SECONDS", "300")
         ),
     )
 

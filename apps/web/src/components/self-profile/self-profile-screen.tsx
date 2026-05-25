@@ -4,18 +4,22 @@ import * as React from "react";
 import {
   AlertCircle,
   LoaderCircle,
+  Pencil,
   RefreshCw,
   ShieldAlert,
   UserCircle2,
 } from "lucide-react";
 
 import { PageContainer } from "@/components/app-shell";
+import { SelfAvatarEditorDialog } from "@/components/self-profile/self-avatar-editor-dialog";
+import { SelfAvatarImage } from "@/components/self-profile/self-avatar-image";
 import { SelfDeleteAccountDialog } from "@/components/self-profile/self-delete-account-dialog";
 import { SelfProfileForm } from "@/components/self-profile/self-profile-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSelfAvatar } from "@/hooks/useSelfAvatar";
 import { useSelfProfile } from "@/hooks/useSelfProfile";
 
 function SelfProfileLoadingState() {
@@ -82,8 +86,14 @@ export function SelfProfileScreen({
       : "/login",
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = React.useState(false);
   const [deleteConfirmationValue, setDeleteConfirmationValue] =
     React.useState("");
+  const avatarState = useSelfAvatar({ autoLoad: true });
+
+  const refreshProfileSurface = React.useCallback(async () => {
+    await Promise.allSettled([profileState.refresh(), avatarState.refresh()]);
+  }, [avatarState, profileState]);
 
   const closeDeleteDialog = React.useCallback(
     (open: boolean) => {
@@ -117,18 +127,23 @@ export function SelfProfileScreen({
             Self service
           </Badge>
           <Badge variant="outline" className="rounded-full">
-            Full name only
+            Avatar enabled
           </Badge>
           <Button
             type="button"
             variant="outline"
             className="gap-2 rounded-xl"
             onClick={() => {
-              void profileState.refresh();
+              void refreshProfileSurface();
             }}
-            disabled={profileState.loading || profileState.refreshing}
+            disabled={
+              profileState.loading ||
+              profileState.refreshing ||
+              avatarState.loading ||
+              avatarState.refreshing
+            }
           >
-            {profileState.refreshing ? (
+            {profileState.refreshing || avatarState.refreshing ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4" />
@@ -149,6 +164,74 @@ export function SelfProfileScreen({
           />
         ) : (
           <>
+            <Card className="rounded-3xl border-border/70 bg-card/95 py-0 shadow-none">
+              <CardContent className="flex flex-col gap-6 px-6 py-6 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+                  <div className="relative w-max">
+                    {avatarState.loading ? (
+                      <Skeleton className="size-32 rounded-full" />
+                    ) : (
+                      <SelfAvatarImage
+                        imageUrl={avatarState.avatar?.avatar_image_url}
+                        fullName={profile.fullName}
+                        email={profile.email}
+                        size="xl"
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      size="icon"
+                      className="absolute bottom-1 left-1 size-9 rounded-full border border-background/80 shadow-sm"
+                      onClick={() => {
+                        setAvatarDialogOpen(true);
+                      }}
+                      disabled={
+                        avatarState.upload.pending || avatarState.remove.pending
+                      }
+                      aria-label="Edit profile image"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="rounded-full">
+                        Profile image
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-display text-2xl font-black tracking-tight text-foreground">
+                        {profile.fullName || profile.email}
+                      </p>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {profile.email}
+                      </p>
+                    </div>
+                    {avatarState.error ? (
+                      <p className="max-w-xl text-sm leading-6 text-destructive">
+                        {avatarState.error}
+                      </p>
+                    ) : (
+                      <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+                        Upload a profile image to personalize your account.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <SelfAvatarEditorDialog
+              open={avatarDialogOpen}
+              onOpenChange={setAvatarDialogOpen}
+              avatar={avatarState.avatar}
+              fullName={profile.fullName}
+              email={profile.email}
+              uploadAction={avatarState.upload}
+              removeAction={avatarState.remove}
+            />
+
             <SelfProfileForm
               email={profile.email}
               roleLabel={profile.roleLabel}

@@ -12,7 +12,13 @@ import "client-only";
  */
 
 import { SessionExpiredError } from "@/lib/auth/session-errors";
-import type { SelfProfileUpdatePayload } from "@/lib/self-profile";
+import type {
+  SelfAvatarData,
+  SelfAvatarDeleteResponse,
+  SelfAvatarResponse,
+  SelfAvatarUploadResponse,
+  SelfProfileUpdatePayload,
+} from "@/lib/self-profile";
 import {
   getSupabaseBrowserClient,
   readSupabaseBrowserSession,
@@ -124,7 +130,9 @@ async function selfProfileApiRequest<TData>(
 
   let body: BodyInit | undefined;
 
-  if (options.body !== undefined) {
+  if (options.body instanceof FormData) {
+    body = options.body;
+  } else if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(options.body);
   }
@@ -183,6 +191,30 @@ export async function updateSelfProfile(
   return selfProfileApiRequest<Record<string, never>>("/api/me/profile", {
     method: "PATCH",
     body: payload,
+  });
+}
+
+export async function getSelfAvatar(): Promise<SelfAvatarResponse> {
+  return selfProfileApiRequest<SelfAvatarData>("/api/me/avatar", {
+    method: "GET",
+  });
+}
+
+export async function uploadSelfAvatar(
+  file: File,
+): Promise<SelfAvatarUploadResponse> {
+  const body = new FormData();
+  body.append("file", file);
+
+  return selfProfileApiRequest<SelfAvatarData>("/api/me/avatar", {
+    method: "POST",
+    body,
+  });
+}
+
+export async function deleteSelfAvatar(): Promise<SelfAvatarDeleteResponse> {
+  return selfProfileApiRequest<SelfAvatarData>("/api/me/avatar", {
+    method: "DELETE",
   });
 }
 

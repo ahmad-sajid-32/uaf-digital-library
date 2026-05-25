@@ -258,6 +258,7 @@ export function buildInitialRoleShellUserSummary(params: {
     userId: params.userId,
     email: params.email,
     fullName: params.fullName?.trim() || params.email,
+    avatarImageUrl: null,
     role: params.role,
     roleLabel,
   };

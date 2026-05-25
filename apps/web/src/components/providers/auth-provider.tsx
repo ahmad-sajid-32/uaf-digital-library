@@ -28,6 +28,7 @@ interface AuthContextValue {
   hydrated: boolean;
   refreshAuthState: () => Promise<void>;
   overrideProfileDisplayName: (fullName: string | null) => void;
+  overrideProfileAvatarImageUrl: (avatarImageUrl: string | null) => void;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -36,6 +37,7 @@ const FALLBACK_AUTH_CONTEXT: AuthContextValue = {
   hydrated: false,
   refreshAuthState: async () => undefined,
   overrideProfileDisplayName: () => undefined,
+  overrideProfileAvatarImageUrl: () => undefined,
 };
 
 function mapClientSession(session: Session | null): AppAuthState {
@@ -63,26 +65,39 @@ export function AuthProvider({
   const [hydrated, setHydrated] = React.useState(false);
   const refreshInFlightRef = React.useRef<Promise<void> | null>(null);
   const profileDisplayNameOverrideRef = React.useRef<string | null>(null);
+  const profileAvatarImageUrlOverrideRef = React.useRef<
+    string | null | undefined
+  >(undefined);
 
   const applyAuthState = React.useCallback((nextAuth: AppAuthState) => {
     const activeOverride =
       nextAuth.status === "authenticated"
         ? profileDisplayNameOverrideRef.current
         : null;
+    const activeAvatarImageUrlOverride =
+      nextAuth.status === "authenticated"
+        ? profileAvatarImageUrlOverrideRef.current
+        : undefined;
 
     if (nextAuth.status !== "authenticated") {
       profileDisplayNameOverrideRef.current = null;
+      profileAvatarImageUrlOverrideRef.current = undefined;
     }
 
+    const resolvedAuth =
+      nextAuth.status === "authenticated"
+        ? {
+            ...nextAuth,
+            fullName: activeOverride || nextAuth.fullName,
+            avatarImageUrl:
+              activeAvatarImageUrlOverride !== undefined
+                ? activeAvatarImageUrlOverride
+                : nextAuth.avatarImageUrl,
+          }
+        : nextAuth;
+
     React.startTransition(() => {
-      setAuth(
-        activeOverride
-          ? {
-              ...nextAuth,
-              fullName: activeOverride,
-            }
-          : nextAuth,
-      );
+      setAuth(resolvedAuth);
       setHydrated(true);
     });
   }, []);
@@ -108,6 +123,31 @@ export function AuthProvider({
       });
     });
   }, []);
+
+  const overrideProfileAvatarImageUrl = React.useCallback(
+    (avatarImageUrl: string | null) => {
+      const normalizedAvatarImageUrl =
+        typeof avatarImageUrl === "string" && avatarImageUrl.trim()
+          ? avatarImageUrl.trim()
+          : null;
+
+      profileAvatarImageUrlOverrideRef.current = normalizedAvatarImageUrl;
+
+      React.startTransition(() => {
+        setAuth((currentAuth) => {
+          if (currentAuth.status !== "authenticated") {
+            return currentAuth;
+          }
+
+          return {
+            ...currentAuth,
+            avatarImageUrl: normalizedAvatarImageUrl,
+          };
+        });
+      });
+    },
+    [],
+  );
 
   const refreshAuthState = React.useCallback(async () => {
     if (refreshInFlightRef.current) {
@@ -180,8 +220,15 @@ export function AuthProvider({
       hydrated,
       refreshAuthState,
       overrideProfileDisplayName,
+      overrideProfileAvatarImageUrl,
     }),
-    [auth, hydrated, overrideProfileDisplayName, refreshAuthState],
+    [
+      auth,
+      hydrated,
+      overrideProfileAvatarImageUrl,
+      overrideProfileDisplayName,
+      refreshAuthState,
+    ],
   );
 
   return (
