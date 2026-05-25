@@ -8,3 +8,5 @@ export * from "@/components/books/book-create-dialog";
 export * from "@/components/books/book-edit-dialog";
 export * from "@/components/books/book-detail-dialog";
 export * from "@/components/books/staff-books-list-screen";
+export * from "@/components/books/book-cover-image";
+export * from "@/components/books/book-cover-upload-field";

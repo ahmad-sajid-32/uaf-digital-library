@@ -5,10 +5,18 @@ UAF Smart E-Library & University Information Assistant.
 
 Purpose:
 - Define normalized response envelopes for public catalog, staff inventory,
-  single-book reads, queue visibility, and book-management mutations.
+  single-book reads, queue visibility, book-management mutations, and
+  book-cover metadata operations.
 - Validate book-management inputs without moving business rules out of
   PostgreSQL.
 - Provide OpenAPI-friendly field metadata and examples.
+
+Book Cover Integration:
+- Book cover binaries live in the Supabase Storage `book-covers` bucket.
+- PostgreSQL stores only stable object metadata such as path, alt text, MIME
+  type, size, and update timestamp.
+- Public and staff book responses expose public cover URL fields after the
+  service layer enriches database rows.
 """
 
 from __future__ import annotations
@@ -41,6 +49,12 @@ BookStatusValue = Literal[
 ]
 
 EditableBookStatusValue = Literal["available", "maintenance"]
+
+BookCoverMimeTypeValue = Literal[
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+]
 
 
 def _normalize_required_text(value: Any) -> Any:
@@ -86,7 +100,62 @@ class StrictRequestModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class BookItemResponse(BaseModel):
+class BookCoverPublicFields(BaseModel):
+    """
+    Public-safe book-cover fields shared by public and staff book responses.
+
+    These fields are nullable because older book records may not have a cover
+    image yet.
+    """
+
+    cover_image_path: str | None = Field(
+        default=None,
+        example="books/550e8400-e29b-41d4-a716-446655440000/cover.webp",
+        description="Supabase Storage object path inside the book-covers bucket.",
+    )
+    cover_image_url: str | None = Field(
+        default=None,
+        example=(
+            "https://example.supabase.co/storage/v1/object/public/book-covers/"
+            "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+        ),
+        description="Public read URL for the cover image.",
+    )
+    cover_image_alt: str | None = Field(
+        default=None,
+        example="Cover image for Introduction to Algorithms",
+        description="Human-readable alternative text for the book cover.",
+    )
+    cover_image_updated_at: datetime | None = Field(
+        default=None,
+        example="2026-05-25T18:16:31Z",
+        description="Timestamp when cover metadata was last changed.",
+    )
+
+
+class BookCoverStaffFields(BookCoverPublicFields):
+    """
+    Staff-only book-cover fields.
+
+    Staff responses include MIME type and size because staff users manage
+    uploads and replacements.
+    """
+
+    cover_image_mime_type: BookCoverMimeTypeValue | None = Field(
+        default=None,
+        example="image/webp",
+        description="Validated MIME type of the uploaded cover image.",
+    )
+    cover_image_size_bytes: int | None = Field(
+        default=None,
+        ge=1,
+        le=2_097_152,
+        example=134522,
+        description="Validated cover image size in bytes.",
+    )
+
+
+class BookItemResponse(BookCoverPublicFields):
     """
     Public representation of a single book in the catalog.
     """
@@ -101,9 +170,9 @@ class BookItemResponse(BaseModel):
     created_at: datetime = Field(..., example="2026-02-24T10:15:30Z")
 
 
-class BookDetailItemResponse(BaseModel):
+class BookDetailItemResponse(BookCoverPublicFields):
     """
-    Detailed representation of a single book.
+    Detailed public representation of a single book.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -119,10 +188,22 @@ class BookDetailItemResponse(BaseModel):
     created_at: datetime = Field(..., example="2026-02-24T10:15:30Z")
 
 
-class StaffBookListItemResponse(BookDetailItemResponse):
+class StaffBookListItemResponse(BookCoverStaffFields):
     """
     Staff inventory row shape for directory management.
     """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    title: str = Field(..., example="Introduction to Algorithms")
+    author: str = Field(..., example="Thomas H. Cormen")
+    category: BookCategoryValue = Field(..., example="computer_science")
+    status: BookStatusValue = Field(..., example="available")
+    replacement_cost: Decimal = Field(..., example=2500)
+    fine_per_day_rate: Decimal = Field(..., example=25)
+    override_borrow_duration_days: int | None = Field(None, example=7)
+    created_at: datetime = Field(..., example="2026-02-24T10:15:30Z")
 
 
 class BooksListData(BaseModel):
@@ -202,7 +283,7 @@ class StaffBookDetailData(BaseModel):
     Staff single-book payload returned inside the success envelope.
     """
 
-    book: BookDetailItemResponse
+    book: StaffBookListItemResponse
 
 
 class StaffBookDetailResponse(BaseModel):
@@ -373,6 +454,102 @@ class BookIdResponse(BaseModel):
     timestamp_ms: int = Field(..., example=1741348800000)
 
 
+class BookCoverMetadataItem(BaseModel):
+    """
+    Staff response item for a book-cover metadata mutation.
+    """
+
+    book_id: UUID = Field(..., example="550e8400-e29b-41d4-a716-446655440000")
+    cover_image_path: str | None = Field(
+        default=None,
+        example="books/550e8400-e29b-41d4-a716-446655440000/cover.webp",
+    )
+    cover_image_url: str | None = Field(
+        default=None,
+        example=(
+            "https://example.supabase.co/storage/v1/object/public/book-covers/"
+            "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+        ),
+    )
+    cover_image_alt: str | None = Field(
+        default=None,
+        example="Cover image for Clean Architecture",
+    )
+    cover_image_mime_type: BookCoverMimeTypeValue | None = Field(
+        default=None,
+        example="image/webp",
+    )
+    cover_image_size_bytes: int | None = Field(
+        default=None,
+        ge=1,
+        le=2_097_152,
+        example=134522,
+    )
+    cover_image_updated_at: datetime | None = Field(
+        default=None,
+        example="2026-05-25T18:16:31Z",
+    )
+
+
+class BookCoverUploadData(BaseModel):
+    """
+    Payload returned after a successful book-cover upload.
+    """
+
+    cover: BookCoverMetadataItem
+
+
+class BookCoverUploadResponse(BaseModel):
+    """
+    Normalized 200 response for book-cover upload or replacement.
+    """
+
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Book cover uploaded successfully")
+    data: BookCoverUploadData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
+class BookCoverDeleteItem(BookCoverMetadataItem):
+    """
+    Staff response item for clearing book-cover metadata.
+
+    previous_cover_image_path helps the API caller understand which object was
+    removed or attempted for cleanup.
+    """
+
+    previous_cover_image_path: str | None = Field(
+        default=None,
+        example="books/550e8400-e29b-41d4-a716-446655440000/cover.webp",
+    )
+    previous_cover_image_url: str | None = Field(
+        default=None,
+        example=(
+            "https://example.supabase.co/storage/v1/object/public/book-covers/"
+            "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+        ),
+    )
+
+
+class BookCoverDeleteData(BaseModel):
+    """
+    Payload returned after successful book-cover removal.
+    """
+
+    cover: BookCoverDeleteItem
+
+
+class BookCoverDeleteResponse(BaseModel):
+    """
+    Normalized 200 response for book-cover removal.
+    """
+
+    status: int = Field(..., example=200)
+    message: str = Field(..., example="Book cover removed successfully")
+    data: BookCoverDeleteData
+    timestamp_ms: int = Field(..., example=1741348800000)
+
+
 class EmptyData(BaseModel):
     """
     Empty object payload for mutation success responses.
@@ -401,6 +578,16 @@ BOOKS_LIST_SUCCESS_EXAMPLE = {
                 "author": "Thomas H. Cormen",
                 "category": "computer_science",
                 "status": "available",
+                "cover_image_path": (
+                    "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+                ),
+                "cover_image_url": (
+                    "https://example.supabase.co/storage/v1/object/public/"
+                    "book-covers/books/550e8400-e29b-41d4-a716-446655440000/"
+                    "cover.webp"
+                ),
+                "cover_image_alt": "Cover image for Introduction to Algorithms",
+                "cover_image_updated_at": "2026-05-25T18:16:31Z",
                 "created_at": "2026-02-24T10:15:30Z",
             }
         ],
@@ -423,6 +610,15 @@ BOOK_DETAIL_SUCCESS_EXAMPLE = {
             "replacement_cost": 2500,
             "fine_per_day_rate": 25,
             "override_borrow_duration_days": 7,
+            "cover_image_path": (
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_url": (
+                "https://example.supabase.co/storage/v1/object/public/book-covers/"
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_alt": "Cover image for Introduction to Algorithms",
+            "cover_image_updated_at": "2026-05-25T18:16:31Z",
             "created_at": "2026-02-24T10:15:30Z",
         }
     },
@@ -443,6 +639,18 @@ STAFF_BOOKS_LIST_SUCCESS_EXAMPLE = {
                 "replacement_cost": 2500,
                 "fine_per_day_rate": 25,
                 "override_borrow_duration_days": 7,
+                "cover_image_path": (
+                    "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+                ),
+                "cover_image_url": (
+                    "https://example.supabase.co/storage/v1/object/public/"
+                    "book-covers/books/550e8400-e29b-41d4-a716-446655440000/"
+                    "cover.webp"
+                ),
+                "cover_image_alt": "Cover image for Introduction to Algorithms",
+                "cover_image_mime_type": "image/webp",
+                "cover_image_size_bytes": 134522,
+                "cover_image_updated_at": "2026-05-25T18:16:31Z",
                 "created_at": "2026-02-24T10:15:30Z",
             }
         ],
@@ -466,6 +674,17 @@ STAFF_BOOK_DETAIL_SUCCESS_EXAMPLE = {
             "replacement_cost": 2500,
             "fine_per_day_rate": 25,
             "override_borrow_duration_days": 7,
+            "cover_image_path": (
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_url": (
+                "https://example.supabase.co/storage/v1/object/public/book-covers/"
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_alt": "Cover image for Introduction to Algorithms",
+            "cover_image_mime_type": "image/webp",
+            "cover_image_size_bytes": 134522,
+            "cover_image_updated_at": "2026-05-25T18:16:31Z",
             "created_at": "2026-02-24T10:15:30Z",
         }
     },
@@ -508,5 +727,51 @@ DELETE_BOOK_SUCCESS_EXAMPLE = {
     "status": 200,
     "message": "Book deleted successfully",
     "data": {},
+    "timestamp_ms": 1741348800000,
+}
+
+BOOK_COVER_UPLOAD_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Book cover uploaded successfully",
+    "data": {
+        "cover": {
+            "book_id": "550e8400-e29b-41d4-a716-446655440000",
+            "cover_image_path": (
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_url": (
+                "https://example.supabase.co/storage/v1/object/public/book-covers/"
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_alt": "Cover image for Clean Architecture",
+            "cover_image_mime_type": "image/webp",
+            "cover_image_size_bytes": 134522,
+            "cover_image_updated_at": "2026-05-25T18:16:31Z",
+        }
+    },
+    "timestamp_ms": 1741348800000,
+}
+
+BOOK_COVER_DELETE_SUCCESS_EXAMPLE = {
+    "status": 200,
+    "message": "Book cover removed successfully",
+    "data": {
+        "cover": {
+            "book_id": "550e8400-e29b-41d4-a716-446655440000",
+            "previous_cover_image_path": (
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "previous_cover_image_url": (
+                "https://example.supabase.co/storage/v1/object/public/book-covers/"
+                "books/550e8400-e29b-41d4-a716-446655440000/cover.webp"
+            ),
+            "cover_image_path": None,
+            "cover_image_url": None,
+            "cover_image_alt": None,
+            "cover_image_mime_type": None,
+            "cover_image_size_bytes": None,
+            "cover_image_updated_at": "2026-05-25T18:16:31Z",
+        }
+    },
     "timestamp_ms": 1741348800000,
 }

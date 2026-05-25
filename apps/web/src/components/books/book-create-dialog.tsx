@@ -6,6 +6,15 @@
  * - Provide one shell-native create flow for staff inventory management.
  * - Keep the create fields aligned with the backend contract instead of
  *   inventing unsupported inputs.
+ * - Allow staff to optionally select a book-cover image during create without
+ *   mixing binary upload into the JSON book-create request.
+ *
+ * Book Cover Integration:
+ * - The book metadata is created first through the existing JSON API.
+ * - If a valid cover image is selected, the cover is uploaded after the backend
+ *   returns the created book ID.
+ * - If cover upload fails, the created book is not rolled back. The book exists
+ *   and the user can retry cover upload later from the edit flow.
  */
 
 "use client";
@@ -13,7 +22,7 @@
 import * as React from "react";
 import { BookPlus, LoaderCircle } from "lucide-react";
 
-import { BookStatusBadge } from "@/components/books/book-status-badge";
+import { BookCoverUploadField } from "@/components/books/book-cover-upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,12 +50,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCreateBook, useUploadBookCover } from "@/hooks/useBooks";
 import {
   BOOK_CATEGORY_VALUES,
   getBookCategoryLabel,
   type BookCategory,
 } from "@/lib/books";
-import { useCreateBook } from "@/hooks/useBooks";
 
 interface BookCreateDialogProps {
   open: boolean;
@@ -120,13 +129,33 @@ export function BookCreateDialog({
   onOpenChange,
   onCreated,
 }: BookCreateDialogProps): React.JSX.Element {
-  const { pending, error, clearError, createBook } = useCreateBook();
+  const {
+    pending: createPending,
+    error: createError,
+    clearError: clearCreateError,
+    createBook,
+  } = useCreateBook();
+  const {
+    pending: coverUploadPending,
+    error: coverUploadError,
+    clearError: clearCoverUploadError,
+    uploadBookCover,
+  } = useUploadBookCover();
+
   const [form, setForm] = React.useState<CreateBookFormState>({
     ...DEFAULT_CREATE_FORM,
   });
+  const [selectedCoverFile, setSelectedCoverFile] = React.useState<File | null>(
+    null,
+  );
+  const [coverValidationError, setCoverValidationError] = React.useState<
+    string | null
+  >(null);
   const [validationError, setValidationError] = React.useState<string | null>(
     null,
   );
+
+  const submitting = createPending || coverUploadPending;
 
   React.useEffect(() => {
     if (open) {
@@ -134,9 +163,12 @@ export function BookCreateDialog({
     }
 
     setForm({ ...DEFAULT_CREATE_FORM });
+    setSelectedCoverFile(null);
+    setCoverValidationError(null);
     setValidationError(null);
-    clearError();
-  }, [clearError, open]);
+    clearCreateError();
+    clearCoverUploadError();
+  }, [clearCoverUploadError, clearCreateError, open]);
 
   const handleSubmit = React.useCallback(async () => {
     const message = getValidationMessage(form);
@@ -146,7 +178,14 @@ export function BookCreateDialog({
       return;
     }
 
+    if (coverValidationError) {
+      setValidationError(coverValidationError);
+      return;
+    }
+
     setValidationError(null);
+    clearCreateError();
+    clearCoverUploadError();
 
     const bookId = await createBook({
       title: form.title.trim(),
@@ -163,14 +202,33 @@ export function BookCreateDialog({
       return;
     }
 
+    if (selectedCoverFile) {
+      await uploadBookCover(bookId, {
+        file: selectedCoverFile,
+        coverImageAlt: `Cover image for ${form.title.trim()}`,
+      });
+    }
+
     setForm({ ...DEFAULT_CREATE_FORM });
+    setSelectedCoverFile(null);
+    setCoverValidationError(null);
     onOpenChange(false);
     onCreated({ bookId });
-  }, [createBook, form, onCreated, onOpenChange]);
+  }, [
+    clearCoverUploadError,
+    clearCreateError,
+    coverValidationError,
+    createBook,
+    form,
+    onCreated,
+    onOpenChange,
+    selectedCoverFile,
+    uploadBookCover,
+  ]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl lg:min-w-4xl overflow-y-auto rounded-3xl border-border/70 p-0">
+      <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-6xl overflow-y-auto rounded-3xl border-border/70 p-0 lg:min-w-4xl">
         <div className="px-6 pb-6 pt-6">
           <DialogHeader className="space-y-3 text-left">
             <DialogTitle className="font-display text-2xl font-black tracking-tight">
@@ -193,8 +251,8 @@ export function BookCreateDialog({
                       New Catalog Record
                     </CardTitle>
                     <CardDescription className="px-0 text-sm leading-6">
-                      Fill the basic book identity and the lending rules that
-                      control costs, fines, and optional custom duration.
+                      Fill the basic book identity, lending rules, and optional
+                      cover image used across staff and student catalog views.
                     </CardDescription>
                   </div>
                   <Badge
@@ -213,144 +271,166 @@ export function BookCreateDialog({
               </div>
             ) : null}
 
-            {error ? (
+            {createError ? (
               <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {error}
+                {createError}
               </div>
             ) : null}
 
-            <Card className="border-border/60 bg-card/95 py-0 shadow-none">
-              <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="create-book-title">Title</Label>
-                  <Input
-                    id="create-book-title"
-                    value={form.title}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }));
-                    }}
-                    disabled={pending}
-                    className="mt-2 rounded-xl"
-                  />
-                </div>
+            {coverUploadError ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                Book was created, but the cover image was not uploaded.{" "}
+                {coverUploadError}
+              </div>
+            ) : null}
 
-                <div className="sm:col-span-2">
-                  <Label htmlFor="create-book-author">Author</Label>
-                  <Input
-                    id="create-book-author"
-                    value={form.author}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        author: event.target.value,
-                      }));
-                    }}
-                    disabled={pending}
-                    className="mt-2 rounded-xl"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="create-book-category">Category</Label>
-                  <Select
-                    value={form.category}
-                    onValueChange={(value) => {
-                      setForm((current) => ({
-                        ...current,
-                        category: value as BookCategory,
-                      }));
-                    }}
-                    disabled={pending}
-                  >
-                    <SelectTrigger
-                      id="create-book-category"
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,0.72fr)_minmax(320px,0.28fr)]">
+              <BookCoverUploadField
+                id="create-book-cover"
+                title={form.title}
+                author={form.author}
+                file={selectedCoverFile}
+                disabled={submitting}
+                uploadPending={coverUploadPending}
+                error={coverValidationError}
+                onFileChange={setSelectedCoverFile}
+                onValidationError={setCoverValidationError}
+                helperText="Add a JPEG, PNG, or WEBP cover image."
+                className="min-w-0"
+              />
+              <Card className="border-border/60 bg-card/95 py-0 shadow-none">
+                <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="create-book-title">Title</Label>
+                    <Input
+                      id="create-book-title"
+                      value={form.title}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          title: event.target.value,
+                        }));
+                      }}
+                      disabled={submitting}
                       className="mt-2 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="create-book-author">Author</Label>
+                    <Input
+                      id="create-book-author"
+                      value={form.author}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          author: event.target.value,
+                        }));
+                      }}
+                      disabled={submitting}
+                      className="mt-2 rounded-xl"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="create-book-category">Category</Label>
+                    <Select
+                      value={form.category}
+                      onValueChange={(value) => {
+                        setForm((current) => ({
+                          ...current,
+                          category: value as BookCategory,
+                        }));
+                      }}
+                      disabled={submitting}
                     >
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BOOK_CATEGORY_VALUES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {getBookCategoryLabel(category)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                      <SelectTrigger
+                        id="create-book-category"
+                        className="mt-2 rounded-xl"
+                      >
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BOOK_CATEGORY_VALUES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {getBookCategoryLabel(category)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div>
-                  <Label htmlFor="create-book-replacement-cost">
-                    Replacement Cost
-                  </Label>
-                  <Input
-                    id="create-book-replacement-cost"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    inputMode="decimal"
-                    value={form.replacementCost}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        replacementCost: event.target.value,
-                      }));
-                    }}
-                    disabled={pending}
-                    className="mt-2 rounded-xl"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="create-book-replacement-cost">
+                      Replacement Cost
+                    </Label>
+                    <Input
+                      id="create-book-replacement-cost"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.replacementCost}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          replacementCost: event.target.value,
+                        }));
+                      }}
+                      disabled={submitting}
+                      className="mt-2 rounded-xl"
+                    />
+                  </div>
 
-                <div>
-                  <Label htmlFor="create-book-fine-rate">
-                    Fine Per Day Rate
-                  </Label>
-                  <Input
-                    id="create-book-fine-rate"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    inputMode="decimal"
-                    value={form.finePerDayRate}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        finePerDayRate: event.target.value,
-                      }));
-                    }}
-                    disabled={pending}
-                    className="mt-2 rounded-xl"
-                  />
-                </div>
+                  <div>
+                    <Label htmlFor="create-book-fine-rate">
+                      Fine Per Day Rate
+                    </Label>
+                    <Input
+                      id="create-book-fine-rate"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      inputMode="decimal"
+                      value={form.finePerDayRate}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          finePerDayRate: event.target.value,
+                        }));
+                      }}
+                      disabled={submitting}
+                      className="mt-2 rounded-xl"
+                    />
+                  </div>
 
-                <div className="sm:col-span-2">
-                  <Label htmlFor="create-book-override-days">
-                    Custom Borrow Duration
-                  </Label>
-                  <Input
-                    id="create-book-override-days"
-                    type="number"
-                    min={1}
-                    step="1"
-                    inputMode="numeric"
-                    value={form.overrideBorrowDurationDays}
-                    onChange={(event) => {
-                      setForm((current) => ({
-                        ...current,
-                        overrideBorrowDurationDays: event.target.value,
-                      }));
-                    }}
-                    disabled={pending}
-                    className="mt-2 rounded-xl"
-                  />
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    Leave this blank to use the normal borrowing duration.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="create-book-override-days">
+                      Custom Borrow Duration
+                    </Label>
+                    <Input
+                      id="create-book-override-days"
+                      type="number"
+                      min={1}
+                      step="1"
+                      inputMode="numeric"
+                      value={form.overrideBorrowDurationDays}
+                      onChange={(event) => {
+                        setForm((current) => ({
+                          ...current,
+                          overrideBorrowDurationDays: event.target.value,
+                        }));
+                      }}
+                      disabled={submitting}
+                      className="mt-2 rounded-xl"
+                    />
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      Leave this blank to use the normal borrowing duration.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <DialogFooter className="mt-6 border-t border-border/60 pt-5">
@@ -358,7 +438,7 @@ export function BookCreateDialog({
               type="button"
               variant="outline"
               className="rounded-xl"
-              disabled={pending}
+              disabled={submitting}
               onClick={() => {
                 onOpenChange(false);
               }}
@@ -368,17 +448,21 @@ export function BookCreateDialog({
             <Button
               type="button"
               className="gap-2 rounded-xl"
-              disabled={pending}
+              disabled={submitting}
               onClick={() => {
                 void handleSubmit();
               }}
             >
-              {pending ? (
+              {submitting ? (
                 <LoaderCircle className="h-4 w-4 animate-spin" />
               ) : (
                 <BookPlus className="h-4 w-4" />
               )}
-              {pending ? "Creating..." : "Create Book"}
+              {createPending
+                ? "Creating..."
+                : coverUploadPending
+                  ? "Uploading cover..."
+                  : "Create Book"}
             </Button>
           </DialogFooter>
         </div>

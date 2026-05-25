@@ -7,9 +7,16 @@ import "client-only";
  * Purpose:
  * - Centralize authenticated requests for the staff book-inventory module.
  * - Mirror the current backend contract for staff inventory list/detail reads,
- *   selected-book queue visibility, and book create/update/delete flows.
+ *   selected-book queue visibility, book create/update/delete flows, and
+ *   book-cover upload/removal flows.
  * - Preserve backend error messages from the standardized JSON envelope so UI
  *   components can render truthful feedback.
+ *
+ * Book Cover Integration:
+ * - Book-cover binaries are uploaded through FastAPI as multipart/form-data.
+ * - The frontend does not upload directly to Supabase Storage.
+ * - The backend validates the image, uploads it to the `book-covers` bucket,
+ *   and persists cover metadata through PostgreSQL RPCs.
  *
  * Important:
  * - This module does not implement business logic.
@@ -43,9 +50,10 @@ export interface BackendSuccessEnvelope<TData> {
 
 export interface BackendErrorEnvelope {
   status: number;
-  message: string;
-  data: Record<string, never>;
-  timestamp_ms: number;
+  message?: string;
+  detail?: string | { message?: string };
+  data?: Record<string, never>;
+  timestamp_ms?: number;
 }
 
 export class BooksApiError extends Error {
@@ -62,11 +70,42 @@ export function isBooksApiError(error: unknown): error is BooksApiError {
   return error instanceof BooksApiError;
 }
 
+export type BookCoverMimeType = "image/jpeg" | "image/png" | "image/webp";
+
+export interface BookCoverMetadataItem {
+  book_id: string;
+  cover_image_path: string | null;
+  cover_image_url: string | null;
+  cover_image_alt: string | null;
+  cover_image_mime_type: BookCoverMimeType | null;
+  cover_image_size_bytes: number | null;
+  cover_image_updated_at: string | null;
+}
+
+export interface BookCoverDeleteMetadataItem extends BookCoverMetadataItem {
+  previous_cover_image_path: string | null;
+  previous_cover_image_url: string | null;
+}
+
+export interface BookCoverUploadData {
+  cover: BookCoverMetadataItem;
+}
+
+export interface BookCoverDeleteData {
+  cover: BookCoverDeleteMetadataItem;
+}
+
 export type StaffBooksListResponse = BackendSuccessEnvelope<StaffBooksListData>;
 export type StaffBookDetailResponse =
   BackendSuccessEnvelope<StaffBookDetailData>;
 export type BookQueueStatusResponse = SharedBookQueueStatusResponse;
-export type EmptySuccessResponse = BackendSuccessEnvelope<Record<string, never>>;
+export type EmptySuccessResponse = BackendSuccessEnvelope<
+  Record<string, never>
+>;
+export type BookCoverUploadResponse =
+  BackendSuccessEnvelope<BookCoverUploadData>;
+export type BookCoverDeleteResponse =
+  BackendSuccessEnvelope<BookCoverDeleteData>;
 
 export interface GetStaffBooksOptions {
   limit?: number;
@@ -74,8 +113,23 @@ export interface GetStaffBooksOptions {
   signal?: AbortSignal;
 }
 
+export interface UploadBookCoverOptions {
+  file: File;
+  coverImageAlt?: string | null;
+  signal?: AbortSignal;
+}
+
+export interface DeleteBookCoverOptions {
+  signal?: AbortSignal;
+}
+
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
+  signal?: AbortSignal;
+};
+
+type MultipartApiRequestOptions = Omit<RequestInit, "body"> & {
+  body: FormData;
   signal?: AbortSignal;
 };
 
@@ -107,9 +161,7 @@ async function getAccessToken(): Promise<string> {
   return accessToken;
 }
 
-async function parseJsonResponse(
-  response: Response,
-): Promise<unknown | null> {
+async function parseJsonResponse(response: Response): Promise<unknown | null> {
   const contentType = response.headers.get("content-type") ?? "";
 
   if (!contentType.includes("application/json")) {
@@ -128,9 +180,41 @@ function getEnvelopeMessage(payload: unknown): string | null {
     return null;
   }
 
-  const message = (payload as { message?: unknown }).message;
+  const envelope = payload as BackendErrorEnvelope;
+  const message = envelope.message;
 
-  return typeof message === "string" && message.trim() ? message : null;
+  if (typeof message === "string" && message.trim()) {
+    return message;
+  }
+
+  const detail = envelope.detail;
+
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (
+    detail &&
+    typeof detail === "object" &&
+    typeof detail.message === "string" &&
+    detail.message.trim()
+  ) {
+    return detail.message;
+  }
+
+  return null;
+}
+
+function toBooksApiError(response: Response, payload: unknown): Error {
+  const message =
+    getEnvelopeMessage(payload) ||
+    `Request failed with status ${response.status}. Please try again.`;
+
+  if (response.status === 401) {
+    return new SessionExpiredError(message);
+  }
+
+  return new BooksApiError(response.status, message);
 }
 
 async function booksApiRequest<TData>(
@@ -160,15 +244,41 @@ async function booksApiRequest<TData>(
   const payload = await parseJsonResponse(response);
 
   if (!response.ok) {
-    const message =
-      getEnvelopeMessage(payload) ||
-      `Request failed with status ${response.status}. Please try again.`;
+    throw toBooksApiError(response, payload);
+  }
 
-    if (response.status === 401) {
-      throw new SessionExpiredError(message);
-    }
+  if (!payload) {
+    throw new Error("Backend returned an invalid JSON response.");
+  }
 
-    throw new BooksApiError(response.status, message);
+  return payload as BackendSuccessEnvelope<TData>;
+}
+
+async function booksMultipartApiRequest<TData>(
+  path: string,
+  options: MultipartApiRequestOptions,
+): Promise<BackendSuccessEnvelope<TData>> {
+  const accessToken = await getAccessToken();
+  const headers = new Headers(options.headers);
+  const baseUrl = getApiBaseUrl();
+
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  headers.set("Accept", "application/json");
+
+  /*
+   * Do not set Content-Type here.
+   * The browser must generate the multipart boundary for FormData.
+   */
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...options,
+    headers,
+    body: options.body,
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw toBooksApiError(response, payload);
   }
 
   if (!payload) {
@@ -276,6 +386,39 @@ export async function updateBook(
   return booksApiRequest<Record<string, never>>(`/api/books/${bookId}`, {
     method: "PATCH",
     body: payload,
+  });
+}
+
+export async function uploadBookCover(
+  bookId: string,
+  options: UploadBookCoverOptions,
+): Promise<BookCoverUploadResponse> {
+  const formData = new FormData();
+  formData.set("file", options.file);
+
+  const normalizedAlt = options.coverImageAlt?.trim();
+
+  if (normalizedAlt) {
+    formData.set("cover_image_alt", normalizedAlt);
+  }
+
+  return booksMultipartApiRequest<BookCoverUploadData>(
+    `/api/books/${bookId}/cover`,
+    {
+      method: "POST",
+      body: formData,
+      signal: options.signal,
+    },
+  );
+}
+
+export async function deleteBookCover(
+  bookId: string,
+  options: DeleteBookCoverOptions = {},
+): Promise<BookCoverDeleteResponse> {
+  return booksApiRequest<BookCoverDeleteData>(`/api/books/${bookId}/cover`, {
+    method: "DELETE",
+    signal: options.signal,
   });
 }
 

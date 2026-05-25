@@ -44,12 +44,18 @@ export function isMetricsApiError(error: unknown): error is MetricsApiError {
 export interface PopularBookMetricItem {
   bookId: string;
   title: string;
+  coverImagePath: string | null;
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
   borrowCount: number;
 }
 
 export interface QueuePressureMetricItem {
   bookId: string;
   title: string;
+  coverImagePath: string | null;
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
   waitingCount: number;
 }
 
@@ -73,12 +79,18 @@ export interface GetAdminDashboardMetricsOptions {
 interface BackendPopularBookMetricItem {
   book_id: string;
   title: string;
+  cover_image_path?: string | null;
+  cover_image_url?: string | null;
+  cover_image_alt?: string | null;
   borrow_count: number;
 }
 
 interface BackendQueuePressureMetricItem {
   book_id: string;
   title: string;
+  cover_image_path?: string | null;
+  cover_image_url?: string | null;
+  cover_image_alt?: string | null;
   waiting_count: number;
 }
 
@@ -214,11 +226,17 @@ function normalizeMetricsData(
     popularBooks: data.popular_books.map((item) => ({
       bookId: item.book_id,
       title: item.title,
+      coverImagePath: item.cover_image_path ?? null,
+      coverImageUrl: item.cover_image_url ?? null,
+      coverImageAlt: item.cover_image_alt ?? null,
       borrowCount: item.borrow_count,
     })),
     queuePressure: data.queue_pressure.map((item) => ({
       bookId: item.book_id,
       title: item.title,
+      coverImagePath: item.cover_image_path ?? null,
+      coverImageUrl: item.cover_image_url ?? null,
+      coverImageAlt: item.cover_image_alt ?? null,
       waitingCount: item.waiting_count,
     })),
   };

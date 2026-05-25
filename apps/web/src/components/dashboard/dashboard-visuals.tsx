@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { BookCoverImage } from "@/components/books/book-cover-image";
 import { cn } from "@/lib/utils";
 
 export type DashboardChartTone =
@@ -18,6 +19,8 @@ export interface DashboardChartDatum {
   value: number;
   caption?: string;
   tone?: DashboardChartTone;
+  coverImageUrl?: string | null;
+  coverImageAlt?: string | null;
 }
 
 interface DashboardDonutChartProps {
@@ -111,6 +114,23 @@ function buildLinePath(points: Array<{ x: number; y: number }>): string {
     .join(" ");
 }
 
+function RankedBookCover(props: {
+  item: DashboardChartDatum;
+  className?: string;
+}): React.JSX.Element {
+  return (
+    <BookCoverImage
+      title={props.item.label}
+      coverImageUrl={props.item.coverImageUrl}
+      coverImageAlt={props.item.coverImageAlt}
+      variant="thumbnail"
+      className={cn("h-14 w-10 rounded-xl", props.className)}
+      fallbackClassName="text-muted-foreground"
+      loading="lazy"
+    />
+  );
+}
+
 export function DashboardDonutChart({
   items,
   totalLabel,
@@ -195,26 +215,29 @@ export function DashboardDonutChart({
                 key={item.id}
                 className="flex items-start justify-between gap-3 rounded-2xl border border-border/60 bg-background/50 px-3 py-2.5"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "h-2.5 w-2.5 rounded-full",
-                        getToneClassName(item.tone ?? "primary"),
-                      )}
-                      style={{
-                        backgroundColor: getToneColor(item.tone ?? "primary"),
-                      }}
-                    />
-                    <p className="truncate text-sm font-semibold text-foreground">
-                      {item.label}
-                    </p>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <RankedBookCover item={item} className="h-12 w-9 rounded-lg" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "h-2.5 w-2.5 shrink-0 rounded-full",
+                          getToneClassName(item.tone ?? "primary"),
+                        )}
+                        style={{
+                          backgroundColor: getToneColor(item.tone ?? "primary"),
+                        }}
+                      />
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {item.label}
+                      </p>
+                    </div>
+                    {item.caption ? (
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {item.caption}
+                      </p>
+                    ) : null}
                   </div>
-                  {item.caption ? (
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {item.caption}
-                    </p>
-                  ) : null}
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-semibold text-foreground">
@@ -283,7 +306,7 @@ export function DashboardActivityContour({
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-[1.75rem] border border-primary/15 bg-gradient-to-br from-primary/8 via-background/80 to-background/50 px-4 py-4">
+          <div className="overflow-hidden rounded-[1.75rem] border border-primary/15 bg-card/95 px-4 py-4">
             <svg
               viewBox={`0 0 ${width} ${height}`}
               className="h-40 w-full"
@@ -298,10 +321,7 @@ export function DashboardActivityContour({
                 </linearGradient>
               </defs>
 
-              <path
-                d={areaPath}
-                fill="url(#dashboard-activity-fill)"
-              />
+              <path d={areaPath} fill="url(#dashboard-activity-fill)" />
               <path
                 d={linePath}
                 fill="none"
@@ -328,17 +348,20 @@ export function DashboardActivityContour({
             {points.slice(0, 3).map((point, index) => (
               <div
                 key={point.item.id}
-                className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3"
+                className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-background/60 px-3 py-3"
               >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Rank {index + 1}
-                </p>
-                <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                  {point.item.label}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {valueFormatter(point.item.value)}
-                </p>
+                <RankedBookCover item={point.item} />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Rank {index + 1}
+                  </p>
+                  <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                    {point.item.label}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {valueFormatter(point.item.value)}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -367,25 +390,30 @@ export function DashboardBarChart({
           </p>
         </div>
       ) : (
-        <div className="grid h-72 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid h-80 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {items.map((item) => {
-            const height = maxValue > 0 ? Math.max(16, (item.value / maxValue) * 100) : 0;
+            const height =
+              maxValue > 0 ? Math.max(16, (item.value / maxValue) * 100) : 0;
 
             return (
               <div
                 key={item.id}
                 className="flex min-w-0 flex-col justify-end gap-3"
               >
-                <div className="flex min-h-0 flex-1 items-end rounded-[1.75rem] border border-border/60 bg-muted/25 px-2 py-2">
+                <div className="relative flex min-h-0 flex-1 items-end overflow-hidden rounded-[1.75rem] border border-border/60 bg-muted/25 p-2">
+                  <RankedBookCover
+                    item={item}
+                    className="absolute inset-2 h-auto w-auto rounded-[1.25rem]"
+                  />
                   <div
-                    className="w-full rounded-[1.1rem]"
+                    className="relative z-10 w-full rounded-[1.1rem] opacity-80 mix-blend-multiply dark:mix-blend-screen"
                     style={{
                       height: `${height}%`,
                       background: `linear-gradient(180deg, ${getToneColor(item.tone ?? "primary")} 0%, ${getToneColor(item.tone ?? "primary")}cc 100%)`,
                     }}
                   />
                 </div>
-                <div className="space-y-1 px-1">
+                <div className="min-w-0 space-y-1 px-1">
                   <p className="line-clamp-2 text-xs font-semibold leading-5 text-foreground">
                     {item.label}
                   </p>

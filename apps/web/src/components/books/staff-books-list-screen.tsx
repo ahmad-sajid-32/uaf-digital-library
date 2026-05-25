@@ -27,6 +27,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { BookCoverImage } from "@/components/books/book-cover-image";
 import { BookCreateDialog } from "@/components/books/book-create-dialog";
 import { BookDetailDialog } from "@/components/books/book-detail-dialog";
 import { BookEditDialog } from "@/components/books/book-edit-dialog";
@@ -365,13 +366,25 @@ function StaffBooksTable(props: {
                           {serialNumber.toString().padStart(2, "0")}
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            <p className="font-semibold text-foreground">
-                              {item.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {item.author}
-                            </p>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <BookCoverImage
+                              title={item.title}
+                              author={item.author}
+                              coverImageUrl={item.cover_image_url}
+                              coverImageAlt={item.cover_image_alt}
+                              variant="thumbnail"
+                            />
+                            <div className="min-w-0 space-y-1">
+                              <p className="truncate font-semibold text-foreground">
+                                {item.title}
+                              </p>
+                              <p className="truncate text-sm text-muted-foreground">
+                                {item.author}
+                              </p>
+                              <p className="truncate text-xs font-medium text-muted-foreground">
+                                {getBookCategoryLabel(item.category)}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-medium text-foreground">

@@ -22,6 +22,7 @@ import asyncpg
 
 from core.database import Database
 from core.logging import get_logger
+from modules.books.service import BooksService
 
 logger = get_logger(__name__)
 
@@ -30,6 +31,27 @@ class AdminMetricsService:
     """
     Thin RPC wrapper for admin metrics reads.
     """
+
+    @staticmethod
+    def _with_ranked_book_cover_urls(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add public cover URLs to ranked book metric rows.
+        """
+
+        for key in ("popular_books", "queue_pressure"):
+            items = payload.get(key)
+
+            if not isinstance(items, list):
+                continue
+
+            payload[key] = [
+                BooksService._with_cover_public_url(dict(item))
+                if isinstance(item, dict)
+                else item
+                for item in items
+            ]
+
+        return payload
 
     @staticmethod
     async def get_dashboard_metrics(
@@ -93,7 +115,7 @@ class AdminMetricsService:
 
         # Normalize jsonb result.
         if isinstance(raw, dict):
-            return raw
+            return AdminMetricsService._with_ranked_book_cover_urls(raw)
 
         if isinstance(raw, str):
             try:
@@ -119,7 +141,7 @@ class AdminMetricsService:
                 )
                 raise RuntimeError("Admin metrics RPC returned non-object JSON")
 
-            return parsed
+            return AdminMetricsService._with_ranked_book_cover_urls(parsed)
 
         logger.error(
             "ADMIN_METRICS: unexpected RPC return type",

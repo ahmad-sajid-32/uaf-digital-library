@@ -8,8 +8,16 @@
  * - Keep the staff book-inventory module hook logic in one file, matching the
  *   locked frontend convention for module-scoped hook ownership.
  * - Centralize one cached staff inventory directory, local refinement,
- *   selected-book detail, selected-book queue visibility, and book
- *   create/update/delete mutations without pushing orchestration into screens.
+ *   selected-book detail, selected-book queue visibility, book
+ *   create/update/delete mutations, and book-cover upload/delete mutations
+ *   without pushing orchestration into screens.
+ *
+ * Book Cover Integration:
+ * - Cover images are uploaded through FastAPI using multipart/form-data.
+ * - The frontend does not upload directly to Supabase Storage.
+ * - Cover upload/delete actions use their own pending states so create, update,
+ *   delete, upload-cover, and remove-cover controls do not all show loading
+ *   together.
  *
  * Important:
  * - This module does not invent backend behavior.
@@ -26,11 +34,13 @@ import { toast } from "sonner";
 import {
   createBook as createBookRequest,
   deleteBook as deleteBookRequest,
+  deleteBookCover as deleteBookCoverRequest,
   getAllStaffBooks,
   getBookQueueStatus,
   getStaffBookById,
   isBooksApiError,
   updateBook as updateBookRequest,
+  uploadBookCover as uploadBookCoverRequest,
 } from "@/lib/api/books";
 import type {
   BookCategory,
@@ -47,6 +57,8 @@ import { useAuthSessionActions } from "@/hooks/useAuthSessionActions";
 export type BooksListStatus = "idle" | "loading" | "success" | "error";
 export type BookStatusFilter = BookStatus | "all";
 export type BookCategoryFilter = BookCategory | "all";
+export type BookCoverMutationKind = "upload" | "delete";
+
 export const BOOKS_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 export type BooksPageSize = (typeof BOOKS_PAGE_SIZE_OPTIONS)[number];
 
@@ -56,6 +68,11 @@ export interface BooksListFilters {
   category: BookCategoryFilter;
   page: number;
   pageSize: number;
+}
+
+export interface UploadBookCoverPayload {
+  file: File;
+  coverImageAlt?: string | null;
 }
 
 interface BooksListCacheSnapshot {
@@ -353,6 +370,12 @@ function toStaffBookListShape(item: StaffBookDetailItem): StaffBookListItem {
     replacement_cost: item.replacement_cost,
     fine_per_day_rate: item.fine_per_day_rate,
     override_borrow_duration_days: item.override_borrow_duration_days,
+    cover_image_path: item.cover_image_path,
+    cover_image_url: item.cover_image_url,
+    cover_image_alt: item.cover_image_alt,
+    cover_image_mime_type: item.cover_image_mime_type,
+    cover_image_size_bytes: item.cover_image_size_bytes,
+    cover_image_updated_at: item.cover_image_updated_at,
     created_at: item.created_at,
   };
 }
@@ -617,7 +640,9 @@ async function refreshBookQueueStore(
   }
 }
 
-async function refreshBookModuleStoresAfterMutation(bookId: string): Promise<void> {
+async function refreshBookModuleStoresAfterMutation(
+  bookId: string,
+): Promise<void> {
   invalidateBooksListCache();
   const hasLoadedDetailSnapshot = detailSnapshots.has(bookId);
   const hasLoadedQueueSnapshot = queueSnapshots.has(bookId);
@@ -659,10 +684,7 @@ function useBooksMutationFeedback() {
   const { recoverFromSessionFailure } = useAuthSessionActions();
 
   const reportMutationError = React.useCallback(
-    async (
-      error: unknown,
-      options: MutationErrorOptions,
-    ): Promise<string> => {
+    async (error: unknown, options: MutationErrorOptions): Promise<string> => {
       const recovered = await recoverFromSessionFailure(error, {
         toastId: `${options.toastId}-session`,
       });
@@ -685,10 +707,12 @@ function useBooksMutationFeedback() {
   };
 }
 
-export function useBooksList(options: {
-  autoLoad?: boolean;
-  initialFilters?: Partial<BooksListFilters>;
-} = {}) {
+export function useBooksList(
+  options: {
+    autoLoad?: boolean;
+    initialFilters?: Partial<BooksListFilters>;
+  } = {},
+) {
   const snapshot = React.useSyncExternalStore(
     subscribeBooksListStore,
     getBooksListSnapshot,
@@ -697,12 +721,16 @@ export function useBooksList(options: {
   const [filters, setFilters] = React.useState<BooksListFilters>({
     ...DEFAULT_BOOKS_FILTERS,
     ...options.initialFilters,
-    page: Math.max(1, options.initialFilters?.page ?? DEFAULT_BOOKS_FILTERS.page),
+    page: Math.max(
+      1,
+      options.initialFilters?.page ?? DEFAULT_BOOKS_FILTERS.page,
+    ),
     pageSize: normalizeBooksPageSize(
       options.initialFilters?.pageSize ?? DEFAULT_BOOKS_FILTERS.pageSize,
     ),
     status: options.initialFilters?.status ?? DEFAULT_BOOKS_FILTERS.status,
-    category: options.initialFilters?.category ?? DEFAULT_BOOKS_FILTERS.category,
+    category:
+      options.initialFilters?.category ?? DEFAULT_BOOKS_FILTERS.category,
   });
   const isInitialAutoLoad =
     Boolean(options.autoLoad) &&
@@ -726,12 +754,7 @@ export function useBooksList(options: {
       filters.status === "all" || item.status === filters.status;
     const matchesCategory =
       filters.category === "all" || item.category === filters.category;
-    const searchHaystack = [
-      item.title,
-      item.author,
-      item.category,
-      item.status,
-    ]
+    const searchHaystack = [item.title, item.author, item.category, item.status]
       .join(" ")
       .toLowerCase();
     const matchesSearch =
@@ -742,37 +765,40 @@ export function useBooksList(options: {
     return matchesStatus && matchesCategory && matchesSearch;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / filters.pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredItems.length / filters.pageSize),
+  );
   const currentPage = Math.min(filters.page, totalPages);
   const pageStart = (currentPage - 1) * filters.pageSize;
-  const pageItems = filteredItems.slice(pageStart, pageStart + filters.pageSize);
+  const pageItems = filteredItems.slice(
+    pageStart,
+    pageStart + filters.pageSize,
+  );
   const hasAppliedFilters =
     normalizedSearchTerm.length > 0 ||
     filters.status !== "all" ||
     filters.category !== "all";
 
-  const updateFilters = React.useCallback(
-    (next: Partial<BooksListFilters>) => {
-      setFilters((current) => ({
-        ...current,
-        ...next,
-        page:
-          next.page !== undefined
-            ? Math.max(1, next.page)
-            : next.pageSize !== undefined ||
-                next.searchTerm !== undefined ||
-                next.status !== undefined ||
-                next.category !== undefined
-              ? 1
-              : current.page,
-        pageSize:
-          next.pageSize !== undefined
-            ? normalizeBooksPageSize(next.pageSize)
-            : current.pageSize,
-      }));
-    },
-    [],
-  );
+  const updateFilters = React.useCallback((next: Partial<BooksListFilters>) => {
+    setFilters((current) => ({
+      ...current,
+      ...next,
+      page:
+        next.page !== undefined
+          ? Math.max(1, next.page)
+          : next.pageSize !== undefined ||
+              next.searchTerm !== undefined ||
+              next.status !== undefined ||
+              next.category !== undefined
+            ? 1
+            : current.page,
+      pageSize:
+        next.pageSize !== undefined
+          ? normalizeBooksPageSize(next.pageSize)
+          : current.pageSize,
+    }));
+  }, []);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -851,14 +877,19 @@ export function useBookDetail(
 ) {
   const resolvedBookId = bookId ?? "__missing__";
   const subscribe = React.useCallback(
-    (listener: () => void) => subscribeBookDetailStore(resolvedBookId, listener),
+    (listener: () => void) =>
+      subscribeBookDetailStore(resolvedBookId, listener),
     [resolvedBookId],
   );
   const getSnapshot = React.useCallback(
     () => getBookDetailSnapshot(resolvedBookId),
     [resolvedBookId],
   );
-  const snapshot = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snapshot = React.useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getSnapshot,
+  );
 
   React.useEffect(() => {
     if (!options.autoLoad || !bookId) {
@@ -920,7 +951,11 @@ export function useBookQueueStatus(
     () => getBookQueueSnapshot(resolvedBookId),
     [resolvedBookId],
   );
-  const snapshot = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snapshot = React.useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getSnapshot,
+  );
 
   React.useEffect(() => {
     if (!options.autoLoad || !bookId) {
@@ -1059,6 +1094,102 @@ export function useUpdateBook() {
     error,
     clearError,
     updateBook,
+  };
+}
+
+export function useUploadBookCover() {
+  const { reportMutationError } = useBooksMutationFeedback();
+  const [pendingBookId, setPendingBookId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const clearError = React.useCallback(() => {
+    setError(null);
+  }, []);
+
+  const uploadBookCover = React.useCallback(
+    async (
+      bookId: string,
+      payload: UploadBookCoverPayload,
+    ): Promise<boolean> => {
+      setPendingBookId(bookId);
+      setError(null);
+
+      try {
+        await uploadBookCoverRequest(bookId, {
+          file: payload.file,
+          coverImageAlt: payload.coverImageAlt,
+        });
+        await refreshBookModuleStoresAfterMutation(bookId);
+
+        toast.success("Book cover uploaded successfully.", {
+          id: `books-cover-upload-${bookId}`,
+        });
+        return true;
+      } catch (mutationError: unknown) {
+        const message = await reportMutationError(mutationError, {
+          fallbackMessage: "Unable to upload that book cover right now.",
+          toastId: `books-cover-upload-${bookId}-error`,
+        });
+        setError(message);
+        return false;
+      } finally {
+        setPendingBookId((current) => (current === bookId ? null : current));
+      }
+    },
+    [reportMutationError],
+  );
+
+  return {
+    pending: pendingBookId !== null,
+    pendingBookId,
+    error,
+    clearError,
+    uploadBookCover,
+  };
+}
+
+export function useDeleteBookCover() {
+  const { reportMutationError } = useBooksMutationFeedback();
+  const [pendingBookId, setPendingBookId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const clearError = React.useCallback(() => {
+    setError(null);
+  }, []);
+
+  const deleteBookCover = React.useCallback(
+    async (bookId: string): Promise<boolean> => {
+      setPendingBookId(bookId);
+      setError(null);
+
+      try {
+        await deleteBookCoverRequest(bookId);
+        await refreshBookModuleStoresAfterMutation(bookId);
+
+        toast.success("Book cover removed successfully.", {
+          id: `books-cover-delete-${bookId}`,
+        });
+        return true;
+      } catch (mutationError: unknown) {
+        const message = await reportMutationError(mutationError, {
+          fallbackMessage: "Unable to remove that book cover right now.",
+          toastId: `books-cover-delete-${bookId}-error`,
+        });
+        setError(message);
+        return false;
+      } finally {
+        setPendingBookId((current) => (current === bookId ? null : current));
+      }
+    },
+    [reportMutationError],
+  );
+
+  return {
+    pending: pendingBookId !== null,
+    pendingBookId,
+    error,
+    clearError,
+    deleteBookCover,
   };
 }
 

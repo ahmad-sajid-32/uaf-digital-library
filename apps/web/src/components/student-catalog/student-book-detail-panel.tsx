@@ -18,12 +18,12 @@ import Link from "next/link";
 import {
   AlertCircle,
   ArrowRight,
-  BookOpenText,
   LoaderCircle,
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
 
+import { BookCoverImage } from "@/components/books/book-cover-image";
 import { BookStatusBadge } from "@/components/books/book-status-badge";
 import { StudentBorrowActionDialog } from "@/components/student-borrows/student-borrow-action-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -357,6 +357,12 @@ export function StudentBookDetailPanel({
     detailItem?.author ??
     selectedListItem?.author ??
     "Choose a book to inspect its detail.";
+  const displayCategory = detailItem?.category ?? selectedListItem?.category ?? null;
+  const displayStatus = detailItem?.status ?? selectedListItem?.status ?? null;
+  const displayCoverImageUrl =
+    detailItem?.cover_image_url ?? selectedListItem?.cover_image_url ?? null;
+  const displayCoverImageAlt =
+    detailItem?.cover_image_alt ?? selectedListItem?.cover_image_alt ?? null;
   const clearBorrowError = borrowAction.clearError;
   const clearQueueError = queueAction.clearError;
   const canBorrowFromPickupHold =
@@ -435,27 +441,39 @@ export function StudentBookDetailPanel({
     <div className="grid gap-4">
       <Card className="rounded-3xl border-border/70 bg-card/95 py-0 shadow-none">
         <CardHeader className="gap-3 px-5 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                  Selected Book
-                </p>
-                {detailItem ? (
-                  <>
-                    <BookStatusBadge status={detailItem.status} />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
+              <BookCoverImage
+                title={displayTitle}
+                author={displayAuthor}
+                coverImageUrl={displayCoverImageUrl}
+                coverImageAlt={displayCoverImageAlt}
+                variant="compact"
+                loading="eager"
+                className="h-32 w-24 rounded-2xl"
+              />
+
+              <div className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                    Selected Book
+                  </p>
+                  {displayStatus ? (
+                    <BookStatusBadge status={displayStatus} />
+                  ) : null}
+                  {displayCategory ? (
                     <Badge variant="secondary" className="rounded-full">
-                      {getBookCategoryLabel(detailItem.category)}
+                      {getBookCategoryLabel(displayCategory)}
                     </Badge>
-                  </>
-                ) : null}
+                  ) : null}
+                </div>
+                <CardTitle className="text-2xl font-black tracking-tight">
+                  {displayTitle}
+                </CardTitle>
+                <CardDescription className="px-0 text-sm leading-6">
+                  {displayAuthor}
+                </CardDescription>
               </div>
-              <CardTitle className="text-2xl font-black tracking-tight">
-                {displayTitle}
-              </CardTitle>
-              <CardDescription className="px-0 text-sm leading-6">
-                {displayAuthor}
-              </CardDescription>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -587,9 +605,9 @@ export function StudentBookDetailPanel({
                 {recommendation.description}
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
+            <CardContent className="grid gap-3 px-5 pb-5 sm:grid-cols-2">
               {queueAction.error ? (
-                <div className="sm:col-span-2 xl:col-span-4 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:col-span-2">
                   {queueAction.error}
                 </div>
               ) : null}

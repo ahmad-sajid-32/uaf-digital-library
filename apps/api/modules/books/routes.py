@@ -4,8 +4,13 @@ Routes for the Books Module of the
 UAF Smart E-Library & University Information Assistant.
 
 Purpose:
-- Expose the public catalog routes without leaking staff-only inventory data.
+- Expose public catalog routes without leaking staff-only inventory data.
 - Expose dedicated staff inventory reads through admin-prefixed routes.
+- Expose authenticated staff book mutations through PostgreSQL-backed service
+  operations.
+- Expose book-cover upload/removal routes where FastAPI receives multipart
+  files, the service validates/uploads to Supabase Storage, and PostgreSQL stores
+  only cover metadata.
 - Keep mutation/business logic out of FastAPI and inside PostgreSQL RPCs.
 - Apply route-sensitive rate limiting and truthful HTTP error mapping.
 """
@@ -15,12 +20,24 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.logging import get_logger
 from core.rate_limit import RateLimitTier, enforce_rate_limit
 from modules.books.schemas import (
+    BOOK_COVER_DELETE_SUCCESS_EXAMPLE,
+    BOOK_COVER_UPLOAD_SUCCESS_EXAMPLE,
     BOOK_DETAIL_SUCCESS_EXAMPLE,
     BOOK_QUEUE_STATUS_SUCCESS_EXAMPLE,
     BOOKS_LIST_SUCCESS_EXAMPLE,
@@ -29,6 +46,10 @@ from modules.books.schemas import (
     STAFF_BOOK_DETAIL_SUCCESS_EXAMPLE,
     STAFF_BOOKS_LIST_SUCCESS_EXAMPLE,
     UPDATE_BOOK_SUCCESS_EXAMPLE,
+    BookCoverDeleteData,
+    BookCoverDeleteResponse,
+    BookCoverUploadData,
+    BookCoverUploadResponse,
     BookDetailData,
     BookDetailResponse,
     BookIdData,
@@ -116,10 +137,39 @@ DELETE_ERROR_RESPONSES = {
     500: {"description": "Internal Server Error"},
 }
 
+BOOK_COVER_UPLOAD_ERROR_RESPONSES = {
+    401: {"description": "Authentication required"},
+    403: {"description": "Insufficient privileges"},
+    404: {"description": "Book not found"},
+    413: {"description": "Cover image file is too large"},
+    422: {"description": "Invalid cover upload"},
+    429: {"description": "Too Many Requests"},
+    500: {"description": "Internal Server Error"},
+    502: {"description": "Storage provider error"},
+}
+
+BOOK_COVER_DELETE_ERROR_RESPONSES = {
+    401: {"description": "Authentication required"},
+    403: {"description": "Insufficient privileges"},
+    404: {"description": "Book not found"},
+    429: {"description": "Too Many Requests"},
+    500: {"description": "Internal Server Error"},
+    502: {"description": "Storage provider error"},
+}
+
 
 def _require_user_id(request: Request) -> str:
     """
     Extract the authenticated user ID from request state.
+
+    Args:
+        request (Request): FastAPI request with authentication middleware state.
+
+    Returns:
+        str: Authenticated user UUID as a string.
+
+    Raises:
+        HTTPException: 401 when authentication middleware has not resolved a user.
     """
 
     user_id = getattr(request.state, "user_id", None)
@@ -136,6 +186,12 @@ def _require_user_id(request: Request) -> str:
 def _resolve_books_runtime_error_status(message: str) -> int:
     """
     Map deterministic PostgreSQL/runtime failures to truthful HTTP responses.
+
+    Args:
+        message (str): Runtime error message raised by the service layer.
+
+    Returns:
+        int: HTTP status code that best represents the failure.
     """
 
     normalized = message.lower()
@@ -155,6 +211,9 @@ def _resolve_books_runtime_error_status(message: str) -> int:
     ):
         return status.HTTP_409_CONFLICT
 
+    if "cover image file is too large" in normalized:
+        return status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+
     if (
         "title is required" in normalized
         or "author is required" in normalized
@@ -163,10 +222,42 @@ def _resolve_books_runtime_error_status(message: str) -> int:
         or "invalid override borrow duration" in normalized
         or "invalid status transition" in normalized
         or "invalid input value for enum" in normalized
+        or "cover image file is required" in normalized
+        or "invalid cover image mime type" in normalized
+        or "invalid cover image path" in normalized
+        or "invalid cover image size" in normalized
+        or "cover image path is required" in normalized
     ):
         return status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    if (
+        "book cover storage upload failed" in normalized
+        or "book cover storage delete failed" in normalized
+    ):
+        return status.HTTP_502_BAD_GATEWAY
+
     return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+def _safe_error_detail(http_status: int, message: str) -> str:
+    """
+    Return public-safe error detail for HTTPException.
+
+    Args:
+        http_status (int): Resolved HTTP status code.
+        message (str): Service/runtime error message.
+
+    Returns:
+        str: Public-safe error message.
+    """
+
+    if http_status == status.HTTP_500_INTERNAL_SERVER_ERROR:
+        return "Internal Server Error"
+
+    if http_status == status.HTTP_502_BAD_GATEWAY:
+        return "Storage provider error"
+
+    return message
 
 
 async def _enforce_books_rate_limit(
@@ -178,6 +269,15 @@ async def _enforce_books_rate_limit(
 ) -> None:
     """
     Apply route-sensitive throttling for the books surface.
+
+    Args:
+        request (Request): FastAPI request.
+        tier (RateLimitTier): Configured rate-limit tier name.
+        user_id (str | None): Authenticated user UUID when available.
+        subject_hint (str | None): Stable subject string for per-resource throttling.
+
+    Raises:
+        HTTPException: When the shared rate-limit guard rejects the request.
     """
 
     await enforce_rate_limit(
@@ -223,6 +323,18 @@ async def get_public_books(
 ) -> BooksListResponse:
     """
     Retrieve the public catalog list.
+
+    Args:
+        request (Request): FastAPI request.
+        cursor_created_at (Optional[datetime]): Cursor timestamp.
+        cursor_id (Optional[UUID]): Cursor book UUID.
+        limit (int): Maximum rows to return.
+
+    Returns:
+        BooksListResponse: Normalized catalog response.
+
+    Raises:
+        HTTPException: On RPC or validation failure.
     """
 
     logger.info(
@@ -266,7 +378,7 @@ async def get_public_books(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -312,6 +424,16 @@ async def get_book_by_id(
 ) -> BookDetailResponse:
     """
     Retrieve one public-safe book detail record.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+
+    Returns:
+        BookDetailResponse: Normalized public book-detail response.
+
+    Raises:
+        HTTPException: On missing book, throttling, or RPC failure.
     """
 
     rate_limit_tier: RateLimitTier = "book_public_detail"
@@ -350,7 +472,7 @@ async def get_book_by_id(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -395,6 +517,17 @@ async def get_book_queue_status(
 ) -> BookQueueStatusResponse:
     """
     Retrieve authenticated queue visibility for one selected book.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        BookQueueStatusResponse: Normalized queue status response.
+
+    Raises:
+        HTTPException: On authentication, throttling, lookup, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -438,7 +571,7 @@ async def get_book_queue_status(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -484,6 +617,17 @@ async def create_book(
 ) -> BookIdResponse:
     """
     Create one new book through PostgreSQL RPC.
+
+    Args:
+        request (Request): FastAPI request.
+        payload (CreateBookRequest): Validated book creation payload.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        BookIdResponse: Created book UUID response.
+
+    Raises:
+        HTTPException: On authentication, authorization, throttling, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -529,7 +673,7 @@ async def create_book(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -576,6 +720,18 @@ async def update_book(
 ) -> SimpleMessageResponse:
     """
     Update one existing book through PostgreSQL RPC.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        payload (UpdateBookRequest): Partial update payload.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        SimpleMessageResponse: Normalized mutation success response.
+
+    Raises:
+        HTTPException: On authentication, authorization, validation, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -619,7 +775,7 @@ async def update_book(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -638,6 +794,232 @@ async def update_book(
         status=200,
         message="Book updated successfully",
         data=EmptyData(),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.post(
+    "/{book_id}/cover",
+    response_model=BookCoverUploadResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {
+            "description": "Book cover uploaded successfully",
+            "content": {
+                "application/json": {
+                    "example": BOOK_COVER_UPLOAD_SUCCESS_EXAMPLE,
+                }
+            },
+        },
+        **BOOK_COVER_UPLOAD_ERROR_RESPONSES,
+    },
+)
+async def upload_book_cover(
+    request: Request,
+    book_id: UUID,
+    file: UploadFile = File(
+        ...,
+        description="Book cover image. Allowed MIME types: image/jpeg, image/png, image/webp. Max size: 2 MB.",
+    ),
+    cover_image_alt: Optional[str] = Form(
+        default=None,
+        description="Optional alternative text for the book cover image.",
+    ),
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> BookCoverUploadResponse:
+    """
+    Upload or replace a book cover image.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        file (UploadFile): Uploaded cover image.
+        cover_image_alt (Optional[str]): Optional alt text.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        BookCoverUploadResponse: Updated cover metadata.
+
+    Raises:
+        HTTPException: On authentication, authorization, validation, storage, or RPC failure.
+    """
+
+    user_id = _require_user_id(request)
+    rate_limit_tier: RateLimitTier = "book_mutation"
+
+    await _enforce_books_rate_limit(
+        request,
+        tier=rate_limit_tier,
+        user_id=user_id,
+        subject_hint=f"{book_id}:cover-upload",
+    )
+
+    logger.info(
+        "BOOKS: cover upload request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "book_id": str(book_id),
+            "file_name": file.filename,
+            "content_type": file.content_type,
+            "has_cover_image_alt": bool(cover_image_alt and cover_image_alt.strip()),
+            "rate_limit_tier": rate_limit_tier,
+            "outcome": "request",
+        },
+    )
+
+    try:
+        result = await BooksService.upload_book_cover(
+            user_id=user_id,
+            book_id=book_id,
+            file=file,
+            cover_image_alt=cover_image_alt,
+        )
+    except RuntimeError as exc:
+        http_status = _resolve_books_runtime_error_status(str(exc))
+        logger.error(
+            "BOOKS: cover upload failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "book_id": str(book_id),
+                "file_name": file.filename,
+                "content_type": file.content_type,
+                "rate_limit_tier": rate_limit_tier,
+                "error": str(exc),
+                "status_code": http_status,
+                "outcome": "failed",
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=_safe_error_detail(http_status, str(exc)),
+        ) from exc
+    finally:
+        await file.close()
+
+    logger.info(
+        "BOOKS: cover upload success",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "book_id": str(book_id),
+            "cover_image_path": result.get("cover_image_path"),
+            "cover_image_mime_type": result.get("cover_image_mime_type"),
+            "cover_image_size_bytes": result.get("cover_image_size_bytes"),
+            "rate_limit_tier": rate_limit_tier,
+            "outcome": "success",
+        },
+    )
+
+    return BookCoverUploadResponse(
+        status=200,
+        message="Book cover uploaded successfully",
+        data=BookCoverUploadData(cover=result),
+        timestamp_ms=int(time.time() * 1000),
+    )
+
+
+@router.delete(
+    "/{book_id}/cover",
+    response_model=BookCoverDeleteResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {
+            "description": "Book cover removed successfully",
+            "content": {
+                "application/json": {
+                    "example": BOOK_COVER_DELETE_SUCCESS_EXAMPLE,
+                }
+            },
+        },
+        **BOOK_COVER_DELETE_ERROR_RESPONSES,
+    },
+)
+async def delete_book_cover(
+    request: Request,
+    book_id: UUID,
+    _credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> BookCoverDeleteResponse:
+    """
+    Remove a book cover image and clear cover metadata.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        BookCoverDeleteResponse: Cleared cover metadata with previous object path.
+
+    Raises:
+        HTTPException: On authentication, authorization, storage, or RPC failure.
+    """
+
+    user_id = _require_user_id(request)
+    rate_limit_tier: RateLimitTier = "book_mutation"
+
+    await _enforce_books_rate_limit(
+        request,
+        tier=rate_limit_tier,
+        user_id=user_id,
+        subject_hint=f"{book_id}:cover-delete",
+    )
+
+    logger.info(
+        "BOOKS: cover delete request",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "book_id": str(book_id),
+            "rate_limit_tier": rate_limit_tier,
+            "outcome": "request",
+        },
+    )
+
+    try:
+        result = await BooksService.delete_book_cover(user_id=user_id, book_id=book_id)
+    except RuntimeError as exc:
+        http_status = _resolve_books_runtime_error_status(str(exc))
+        logger.error(
+            "BOOKS: cover delete failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "book_id": str(book_id),
+                "rate_limit_tier": rate_limit_tier,
+                "error": str(exc),
+                "status_code": http_status,
+                "outcome": "failed",
+            },
+        )
+        raise HTTPException(
+            status_code=http_status,
+            detail=_safe_error_detail(http_status, str(exc)),
+        ) from exc
+
+    logger.info(
+        "BOOKS: cover delete success",
+        extra={
+            "request_id": getattr(request.state, "request_id", None),
+            "route": request.url.path,
+            "user_id": user_id,
+            "book_id": str(book_id),
+            "previous_cover_image_path": result.get("previous_cover_image_path"),
+            "rate_limit_tier": rate_limit_tier,
+            "outcome": "success",
+        },
+    )
+
+    return BookCoverDeleteResponse(
+        status=200,
+        message="Book cover removed successfully",
+        data=BookCoverDeleteData(cover=result),
         timestamp_ms=int(time.time() * 1000),
     )
 
@@ -665,6 +1047,17 @@ async def delete_book(
 ) -> SimpleMessageResponse:
     """
     Delete one book through PostgreSQL RPC.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        SimpleMessageResponse: Normalized mutation success response.
+
+    Raises:
+        HTTPException: On authentication, authorization, conflict, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -708,7 +1101,7 @@ async def delete_book(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -754,6 +1147,17 @@ async def get_staff_books(
 ) -> StaffBooksListResponse:
     """
     Retrieve the dedicated staff inventory directory.
+
+    Args:
+        request (Request): FastAPI request.
+        query (StaffBooksListQueryParams): Pagination query parameters.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        StaffBooksListResponse: Normalized staff inventory response.
+
+    Raises:
+        HTTPException: On authentication, authorization, throttling, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -800,7 +1204,7 @@ async def get_staff_books(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(
@@ -849,6 +1253,17 @@ async def get_staff_book_by_id(
 ) -> StaffBookDetailResponse:
     """
     Retrieve one staff inventory detail record.
+
+    Args:
+        request (Request): FastAPI request.
+        book_id (UUID): Book UUID.
+        _credentials (HTTPAuthorizationCredentials): Optional bearer dependency.
+
+    Returns:
+        StaffBookDetailResponse: Normalized staff book detail response.
+
+    Raises:
+        HTTPException: On authentication, authorization, throttling, or RPC failure.
     """
 
     user_id = _require_user_id(request)
@@ -892,7 +1307,7 @@ async def get_staff_book_by_id(
         )
         raise HTTPException(
             status_code=http_status,
-            detail=str(exc) if http_status != 500 else "Internal Server Error",
+            detail=_safe_error_detail(http_status, str(exc)),
         ) from exc
 
     logger.info(

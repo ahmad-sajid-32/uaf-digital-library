@@ -23,6 +23,7 @@ import {
   Search,
 } from "lucide-react";
 
+import { BookCoverImage } from "@/components/books/book-cover-image";
 import { BookStatusBadge } from "@/components/books/book-status-badge";
 import { PageContainer } from "@/components/app-shell";
 import { StudentBookDetailPanel } from "@/components/student-catalog/student-book-detail-panel";
@@ -62,7 +63,9 @@ import { cn } from "@/lib/utils";
 const CATALOG_PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 
 function normalizeBookId(value: string | null | undefined): string {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function CatalogLoadingState(): React.JSX.Element {
@@ -131,7 +134,7 @@ function CatalogRowButton(props: {
         props.onSelect(props.item.id);
       }}
       className={cn(
-        "w-full rounded-3xl border px-4 py-4 text-left transition-all duration-200",
+        "mx-auto w-full max-w-[17rem] rounded-3xl border p-3 text-left transition-all duration-200 sm:max-w-[18rem] xl:max-w-[17rem]",
         "hover:border-primary/35 hover:bg-primary/5",
         props.selected
           ? "border-primary/30 bg-primary/10 shadow-sm shadow-primary/10"
@@ -139,28 +142,42 @@ function CatalogRowButton(props: {
       )}
       aria-pressed={props.selected}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="relative">
+        <BookCoverImage
+          title={props.item.title}
+          author={props.item.author}
+          coverImageUrl={props.item.cover_image_url}
+          coverImageAlt={props.item.cover_image_alt}
+          variant="card"
+          showTextFallback={false}
+          className="w-full rounded-[1.5rem]"
+        />
+
+        <div className="absolute right-3 top-3 rounded-full bg-background/90 p-1 shadow-sm backdrop-blur">
+          <BookStatusBadge status={props.item.status} />
+        </div>
+      </div>
+
+      <div className="mt-3 min-w-0 space-y-3 px-1 pb-1">
         <div className="min-w-0 space-y-1">
-          <p className="truncate text-base font-black tracking-tight text-foreground">
+          <p className="line-clamp-2 text-base font-black leading-5 tracking-tight text-foreground">
             {props.item.title}
           </p>
-          <p className="text-sm leading-6 text-muted-foreground">
+          <p className="line-clamp-1 text-sm leading-5 text-muted-foreground">
             {props.item.author}
           </p>
         </div>
 
-        <BookStatusBadge status={props.item.status} />
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="rounded-full">
-          {getBookCategoryLabel(props.item.category)}
-        </Badge>
-        {props.selected ? (
-          <Badge variant="outline" className="rounded-full border-primary/30">
-            Selected
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="rounded-full">
+            {getBookCategoryLabel(props.item.category)}
           </Badge>
-        ) : null}
+          {props.selected ? (
+            <Badge variant="outline" className="rounded-full border-primary/30">
+              Selected
+            </Badge>
+          ) : null}
+        </div>
       </div>
     </button>
   );
@@ -218,7 +235,7 @@ function StudentCatalogListCard(props: {
               </CardTitle>
             </div>
             <CardDescription className="max-w-2xl px-0 text-sm leading-6">
-              Browse the catalog, then open one selected book for full details.
+              Browse cover cards, then open one selected book for full details.
             </CardDescription>
           </div>
 
@@ -301,9 +318,12 @@ function StudentCatalogListCard(props: {
 
       <CardContent className="space-y-4 px-3 py-3 sm:px-4">
         {props.loading ? (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-24 rounded-3xl" />
+              <Skeleton
+                key={index}
+                className="h-64 w-full max-w-[17rem] rounded-3xl sm:h-72 sm:max-w-[18rem] xl:max-w-[17rem]"
+              />
             ))}
           </div>
         ) : props.isEmpty || props.isFilterEmpty ? (
@@ -319,7 +339,7 @@ function StudentCatalogListCard(props: {
             </p>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {props.pagedItems.map((item) => (
               <CatalogRowButton
                 key={item.id}
@@ -410,8 +430,9 @@ export function StudentCatalogScreen(): React.JSX.Element {
   const clearQueueError = studentQueue.joinAction.clearError;
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
-  const [optimisticQueuedBookIds, setOptimisticQueuedBookIds] =
-    React.useState<Set<string>>(() => new Set());
+  const [optimisticQueuedBookIds, setOptimisticQueuedBookIds] = React.useState<
+    Set<string>
+  >(() => new Set());
 
   React.useEffect(() => {
     clearBorrowError();
@@ -451,8 +472,8 @@ export function StudentCatalogScreen(): React.JSX.Element {
       const normalizedEntryBookId = normalizeBookId(entry.book_id);
 
       return (
-        normalizedEntryBookId === normalizedSelectedBookId
-        && canCancelStudentQueueEntry(entry.status)
+        normalizedEntryBookId === normalizedSelectedBookId &&
+        canCancelStudentQueueEntry(entry.status)
       );
     });
   }, [catalog.selectedBookId, optimisticQueuedBookIds, studentQueue.items]);
@@ -469,8 +490,8 @@ export function StudentCatalogScreen(): React.JSX.Element {
       const normalizedEntryStatus = String(entry.status).trim().toLowerCase();
 
       return (
-        normalizedEntryBookId === normalizedSelectedBookId
-        && normalizedEntryStatus === "notified"
+        normalizedEntryBookId === normalizedSelectedBookId &&
+        normalizedEntryStatus === "notified"
       );
     });
   }, [catalog.selectedBookId, studentQueue.items]);
@@ -608,7 +629,7 @@ export function StudentCatalogScreen(): React.JSX.Element {
               />
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(18rem,0.45fr)_minmax(0,1.55fr)]">
+            <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(28rem,0.46fr)]">
               <ScrollReveal direction="up" delayMs={40}>
                 <StudentCatalogListCard
                   loading={catalog.loading}
@@ -647,7 +668,11 @@ export function StudentCatalogScreen(): React.JSX.Element {
                 />
               </ScrollReveal>
 
-              <ScrollReveal direction="up" delayMs={80}>
+              <ScrollReveal
+                direction="up"
+                delayMs={80}
+                className="2xl:sticky 2xl:top-6 2xl:self-start"
+              >
                 <StudentBookDetailPanel
                   selectedListItem={catalog.selectedListItem}
                   selectedBook={catalog.selectedBook}

@@ -12,7 +12,7 @@
  *   system state, then routes the admin into the correct operational module.
  *
  * Integration notes:
- * - Uses the existing useAdminMetrics hook and does not change API contracts.
+ * - Uses the existing useAdminMetrics hook and preserves dashboard behavior.
  * - Uses existing dashboard visual helpers for chart/insight sections.
  * - Does not invent unavailable document/indexing metrics.
  */
@@ -436,12 +436,12 @@ function SystemPulse({ isQuiet }: { isQuiet: boolean }): React.JSX.Element {
   return (
     <span className="relative flex h-2.5 w-2.5">
       {!isQuiet ? (
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
       ) : null}
       <span
         className={cn(
           "relative inline-flex h-2.5 w-2.5 rounded-full",
-          isQuiet ? "bg-muted-foreground/40" : "bg-emerald-500",
+          isQuiet ? "bg-muted-foreground/40" : "bg-success",
         )}
       />
     </span>
@@ -456,7 +456,7 @@ function DashboardErrorState(props: {
   onRetry: () => void | Promise<void>;
 }): React.JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-danger/20 bg-gradient-to-r from-danger/5 via-danger/3 to-transparent p-5">
+    <div className="overflow-hidden rounded-2xl border border-danger/20 bg-danger/5 p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/12 text-danger ring-1 ring-danger/20">
@@ -511,10 +511,8 @@ function GovernanceCommandCenter(props: {
   const PriorityIcon = priority.icon;
 
   return (
-    <div className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/95 p-4 shadow-sm shadow-primary/5 sm:p-5">
-      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-10 h-44 w-44 rounded-full bg-warning/10 blur-3xl" />
-
+    <div className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-card/95 p-4 shadow-sm sm:p-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-primary" />
       <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="space-y-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -634,10 +632,8 @@ function GovernanceMetricCard(props: {
         : "hsl(var(--primary))";
 
   return (
-    <Card className="group overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm shadow-primary/5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg hover:shadow-primary/5">
+    <Card className="group overflow-hidden rounded-2xl border-border/50 bg-card/95 py-0 shadow-sm transition-colors duration-200 hover:border-primary/25">
       <CardContent className="relative flex h-full flex-col gap-4 p-5">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-500 group-hover:scale-150" />
-
         <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-center gap-2">
@@ -738,7 +734,7 @@ function OperationalPressurePanel(props: {
         />
 
         <div className="grid gap-3">
-          <div className="rounded-xl border border-danger/15 bg-gradient-to-r from-danger/5 to-transparent p-4">
+          <div className="rounded-xl border border-danger/15 bg-danger/5 p-4">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-danger/12 text-danger">
                 <ShieldAlert className="h-3.5 w-3.5" />
@@ -757,7 +753,7 @@ function OperationalPressurePanel(props: {
             </p>
           </div>
 
-          <div className="rounded-xl border border-warning/15 bg-gradient-to-r from-warning/5 to-transparent p-4">
+          <div className="rounded-xl border border-warning/15 bg-warning/5 p-4">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/12 text-warning">
                 <UsersRound className="h-3.5 w-3.5" />
@@ -890,6 +886,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
         value: item.borrowCount,
         caption: `Rank ${index + 1}`,
         tone: index === 0 ? "primary" : index === 1 ? "accent" : "muted",
+        coverImageUrl: item.coverImageUrl,
+        coverImageAlt: item.coverImageAlt,
       })),
     [metricsQuery.popularBooks],
   );
@@ -902,6 +900,8 @@ export function AdminMetricsDashboardScreen(): React.JSX.Element {
         value: item.waitingCount,
         caption: `Rank ${index + 1}`,
         tone: index === 0 ? "danger" : index === 1 ? "warning" : "primary",
+        coverImageUrl: item.coverImageUrl,
+        coverImageAlt: item.coverImageAlt,
       })),
     [metricsQuery.queuePressure],
   );

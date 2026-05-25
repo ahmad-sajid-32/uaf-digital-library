@@ -14,7 +14,6 @@
 import * as React from "react";
 import {
   AlertCircle,
-  BookCopy,
   CircleOff,
   LoaderCircle,
   Lock,
@@ -23,6 +22,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { BookCoverImage } from "@/components/books/book-cover-image";
 import { BookStatusBadge } from "@/components/books/book-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +37,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  formatBookCoverSize,
   getBookCategoryLabel,
+  getBookCoverMimeTypeLabel,
   getBookStatusLabel,
   type StaffBookDetailItem,
 } from "@/lib/books";
@@ -241,11 +243,18 @@ function BookDetailContent(props: {
       <Card className="overflow-hidden border-border/60 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.12),transparent_48%),linear-gradient(180deg,hsl(var(--card)),hsl(var(--card)))] py-0 shadow-none">
         <CardContent className="px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <BookCopy className="h-5 w-5" />
-                </div>
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
+              <BookCoverImage
+                title={props.item.title}
+                author={props.item.author}
+                coverImageUrl={props.item.cover_image_url}
+                coverImageAlt={props.item.cover_image_alt}
+                variant="compact"
+                loading="eager"
+                className="h-28 w-20 rounded-2xl sm:h-32 sm:w-24"
+              />
+
+              <div className="min-w-0 space-y-3">
                 <div>
                   <p className="font-display text-2xl font-black tracking-tight text-foreground">
                     {props.item.title}
@@ -253,21 +262,21 @@ function BookDetailContent(props: {
                   <p className="mt-1 text-sm text-muted-foreground">
                     by {props.item.author}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <BookStatusBadge status={props.item.status} />
-                    {props.refreshing ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled
-                        className="h-8 rounded-full px-3"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                        Refreshing...
-                      </Button>
-                    ) : null}
-                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <BookStatusBadge status={props.item.status} />
+                  {props.refreshing ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      className="h-8 rounded-full px-3"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      Refreshing...
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -286,6 +295,32 @@ function BookDetailContent(props: {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60 bg-card/95 py-0 shadow-none">
+        <CardHeader className="px-5 py-5">
+          <CardTitle className="text-base font-black tracking-tight">
+            Cover Metadata
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 px-5 pb-5 sm:grid-cols-3">
+          <DetailMetaField
+            label="Format"
+            value={
+              props.item.cover_image_mime_type
+                ? getBookCoverMimeTypeLabel(props.item.cover_image_mime_type)
+                : "Not available"
+            }
+          />
+          <DetailMetaField
+            label="File Size"
+            value={formatBookCoverSize(props.item.cover_image_size_bytes)}
+          />
+          <DetailMetaField
+            label="Cover Updated"
+            value={formatDateTime(props.item.cover_image_updated_at)}
+          />
         </CardContent>
       </Card>
 
