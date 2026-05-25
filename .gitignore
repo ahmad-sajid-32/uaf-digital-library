@@ -52,3 +52,4 @@ DESIGN.md
 *.log
 *.db
 *.sqlite3
+_analysis
