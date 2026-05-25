@@ -191,7 +191,7 @@ export function AssistantSidebar({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border/50 px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -218,21 +218,21 @@ export function AssistantSidebar({
           ) : null}
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-2">
           <Button
             type="button"
-            className="flex-1 gap-2 rounded-2xl"
+            className="min-w-0 gap-2 rounded-2xl"
             onClick={onNewConversation}
             disabled={submitPending}
           >
-            <Plus className="h-4 w-4" />
-            New chat
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="truncate">New chat</span>
           </Button>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="h-11 w-11 rounded-2xl"
+            className="h-11 w-11 shrink-0 rounded-2xl"
             onClick={onRefresh}
             disabled={conversationsRefreshing}
             aria-label="Refresh conversations"
@@ -248,7 +248,7 @@ export function AssistantSidebar({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto ">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         {conversationsStatus === "loading" ? (
           <AssistantSidebarLoadingState collapsed={false} />
         ) : null}
@@ -274,8 +274,8 @@ export function AssistantSidebar({
         ) : null}
 
         {conversationsStatus === "success" && conversations.length === 0 ? (
-          <div className="flex min-h-full items-center justify-center px-2 py-8">
-            <div className="max-w-xs text-center">
+          <div className="flex min-h-full min-w-0 items-center justify-center overflow-hidden px-2 py-8">
+            <div className="min-w-0 max-w-xs text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl border border-primary/20 bg-primary/6 text-primary">
                 <MessageSquareDashed className="h-6 w-6" />
               </div>
@@ -291,16 +291,20 @@ export function AssistantSidebar({
         ) : null}
 
         {conversationsStatus === "success" && conversations.length > 0 ? (
-          <div className="grid gap-1.5">
+          <div className="grid min-w-0 max-w-full gap-1.5 overflow-x-hidden">
             {conversations.map((conversation) => (
-              <AssistantConversationItemRow
+              <div
                 key={conversation.id}
-                conversation={conversation}
-                isActive={activeConversationId === conversation.id}
-                onSelect={onSelectConversation}
-                onRename={onRenameConversation}
-                onDelete={onDeleteConversation}
-              />
+                className="min-w-0 max-w-full overflow-hidden"
+              >
+                <AssistantConversationItemRow
+                  conversation={conversation}
+                  isActive={activeConversationId === conversation.id}
+                  onSelect={onSelectConversation}
+                  onRename={onRenameConversation}
+                  onDelete={onDeleteConversation}
+                />
+              </div>
             ))}
           </div>
         ) : null}

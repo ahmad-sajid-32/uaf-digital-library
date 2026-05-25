@@ -146,11 +146,11 @@ function DetailMetaField(props: {
   value: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         {props.label}
       </p>
-      <div className="mt-1 text-sm font-semibold text-foreground">
+      <div className="mt-1 break-words text-sm font-semibold text-foreground">
         {props.value}
       </div>
     </div>
@@ -200,7 +200,7 @@ function FineDetailContent(props: {
                   </div>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 <DetailMetaField
                   label="Fine ID"
                   value={shortenId(props.item.fine_id)}
@@ -212,17 +212,26 @@ function FineDetailContent(props: {
               </div>
             </div>
 
-            <div className="grid gap-2 rounded-2xl border border-border/60 bg-background/80 p-4 text-sm text-muted-foreground sm:min-w-72">
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                <UserRound className="h-4 w-4 text-primary" />
-                {props.item.user_full_name}
+            <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/80 p-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <UserRound className="h-4 w-4 text-primary" />
+                  Borrower
+                </div>
+                <p className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {props.item.user_full_name}
+                </p>
               </div>
-              <p>Name: {props.item.user_full_name}</p>
-              <div className="flex items-center gap-2 font-medium text-foreground">
-                <BookCopy className="h-4 w-4 text-primary" />
-                {props.item.title}
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <BookCopy className="h-4 w-4 text-primary" />
+                  Book
+                </div>
+                <p className="mt-2 break-words text-sm font-semibold text-foreground">
+                  {props.item.title}
+                </p>
               </div>
-              <p>Book Title: {props.item.title}</p>
             </div>
           </div>
         </CardContent>
@@ -353,7 +362,7 @@ export function StaffFineDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto rounded-[1.75rem] border-border/70 p-0">
+      <DialogContent className="max-h-[92vh] lg:min-w-4xl overflow-y-auto rounded-[1.75rem] border-border/70 p-0">
         <div className="px-6 pb-6 pt-6">
           <DialogHeader className="space-y-3 text-left">
             <DialogTitle className="font-display text-2xl font-black tracking-tight">

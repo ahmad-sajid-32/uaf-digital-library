@@ -29,19 +29,24 @@ export function DashboardQuickLinks(props: {
             variant="outline"
             className="h-auto justify-start rounded-[1.6rem] border-border/65 bg-background/55 px-4 py-4 text-left hover:bg-primary/5"
           >
-            <Link href={item.href}>
+            <Link
+              href={item.href}
+              className="group flex min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-3xl border border-border/60 bg-background/60 px-4 py-4 transition hover:border-primary/30 hover:bg-primary/5"
+            >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Icon className="h-4 w-4" />
               </div>
+
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-foreground">
+                <p className="break-words text-sm font-bold text-foreground">
                   {item.title}
                 </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                <p className="mt-1 break-words text-sm text-wrap leading-5 text-muted-foreground">
                   {item.summary}
                 </p>
               </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" />
             </Link>
           </Button>
         );
