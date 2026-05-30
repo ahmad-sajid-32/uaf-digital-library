@@ -179,7 +179,10 @@ export async function signInWithPassword(
     }
 
     throw new Error(
-      toSafeErrorMessage(error, "Unable to sign in. Please verify your credentials."),
+      toSafeErrorMessage(
+        error,
+        "Unable to sign in. Please verify your credentials.",
+      ),
     );
   }
 
@@ -243,6 +246,22 @@ export async function updatePassword(newPassword: string): Promise<void> {
   if (error) {
     throw new Error(
       toSafeErrorMessage(error, "Unable to update your password right now."),
+    );
+  }
+}
+
+export async function exchangePasswordCodeForSession(
+  code: string,
+): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    throw new Error(
+      toSafeErrorMessage(
+        error,
+        "Unable to verify this password link. Please request a new one.",
+      ),
     );
   }
 }

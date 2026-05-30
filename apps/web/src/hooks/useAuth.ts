@@ -1,9 +1,11 @@
+// apps/web/src/hooks/useAuth.ts
 "use client";
 
 import * as React from "react";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import {
+  exchangePasswordCodeForSession,
   getSession,
   requestPasswordReset,
   signInWithPassword,
@@ -159,9 +161,7 @@ type PasswordInvalidReason =
   | "expired_or_denied"
   | "verification_failed";
 
-export function useResetPassword(
-  options: PasswordRouteOptions = {},
-): {
+export function useResetPassword(options: PasswordRouteOptions = {}): {
   submit: (newPassword: string, confirmPassword: string) => Promise<boolean>;
   loading: boolean;
   error: string | null;
@@ -224,6 +224,20 @@ export function useResetPassword(
       return null;
     };
 
+    const getRecoveryCode = (): string | null => {
+      const allParams = getAllUrlParams();
+
+      for (const params of allParams) {
+        const code = params.get("code");
+
+        if (code) {
+          return code;
+        }
+      }
+
+      return null;
+    };
+
     const hasRecoveryErrorInUrl = (): boolean => {
       const allParams = getAllUrlParams();
 
@@ -249,11 +263,7 @@ export function useResetPassword(
         const tokenHash = params.get("token_hash");
         const type = params.get("type");
 
-        if (
-          tokenHash &&
-          type &&
-          allowedAccessTypes.has(type as EmailOtpType)
-        ) {
+        if (tokenHash && type && allowedAccessTypes.has(type as EmailOtpType)) {
           return {
             tokenHash,
             type: type as EmailOtpType,
@@ -282,6 +292,14 @@ export function useResetPassword(
       });
     };
 
+    const clearConsumedPasswordLinkParams = (): void => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      window.history.replaceState(null, "", window.location.pathname);
+    };
+
     const revokeRouteAccess = (): void => {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(accessStorageKey);
@@ -290,12 +308,14 @@ export function useResetPassword(
 
     const validateRecoverySession = async (): Promise<void> => {
       const otpPayload = getOtpTokenPayload();
+      const recoveryCode = getRecoveryCode();
       const hasSessionTokens = hasSessionTokensInUrl();
       const urlAccessType = getUrlAccessType();
       const resolvedAccessType =
         otpPayload.type === "invite" || otpPayload.type === "recovery"
           ? otpPayload.type
-          : urlAccessType ?? (successQueryKey === "setup" ? "invite" : "recovery");
+          : (urlAccessType ??
+            (successQueryKey === "setup" ? "invite" : "recovery"));
 
       if (hasRecoveryErrorInUrl()) {
         if (isMounted) {
@@ -321,9 +341,26 @@ export function useResetPassword(
             window.sessionStorage.setItem(accessStorageKey, "granted");
           }
 
-          setAccessType(
-            otpPayload.type === "invite" ? "invite" : "recovery",
-          );
+          clearConsumedPasswordLinkParams();
+          setAccessType(otpPayload.type === "invite" ? "invite" : "recovery");
+          setInvalidLink(false);
+          setInvalidReason(null);
+          return;
+        }
+
+        if (recoveryCode) {
+          await exchangePasswordCodeForSession(recoveryCode);
+
+          if (!isMounted) {
+            return;
+          }
+
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem(accessStorageKey, "granted");
+          }
+
+          clearConsumedPasswordLinkParams();
+          setAccessType(resolvedAccessType);
           setInvalidLink(false);
           setInvalidReason(null);
           return;
@@ -341,6 +378,7 @@ export function useResetPassword(
           window.sessionStorage.getItem(accessStorageKey) === "granted";
         const isAuthorizedRecoveryVisit =
           hasSession && (hasSessionTokens || hasStoredAccess);
+
         setAccessType(resolvedAccessType);
         setInvalidLink(!isAuthorizedRecoveryVisit);
 
