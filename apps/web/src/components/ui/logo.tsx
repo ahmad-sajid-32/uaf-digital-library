@@ -17,7 +17,10 @@ export function Logo({
 
   return (
     <div
-      className={cn("inline-flex min-w-0 items-center gap-2 sm:gap-3", className)}
+      className={cn(
+        "inline-flex min-w-0 items-center gap-2 sm:gap-3",
+        className,
+      )}
       aria-label="UAF Smart E-Library logo"
     >
       <Image
@@ -32,7 +35,7 @@ export function Logo({
         <div className="flex min-w-0 items-baseline gap-1 whitespace-nowrap font-display text-sm font-bold tracking-tight sm:gap-1.5 sm:text-lg">
           <span className="text-foreground">UAF</span>
           <span className="text-primary">Smart</span>
-          <span className="text-warning/80">E-Library</span>
+          <span className="text-primary">E-Library</span>
         </div>
       ) : null}
     </div>
