@@ -2,11 +2,11 @@
 /**
  * Client-side auth provider for normalized application auth state.
  *
- * This provider does not invent a parallel auth system. It subscribes to
- * Supabase auth lifecycle events, maps the current session through the
- * normalization boundary, and exposes a lightweight in-memory auth store for
- * reactive UI. Real route protection still belongs to SSR and middleware in
- * later passes.
+ * This provider subscribes to Supabase auth lifecycle events, maps the current
+ * session through the normalization boundary, and exposes a lightweight
+ * in-memory auth store for reactive UI. Password recovery/setup sessions are
+ * suppressed from normal app routing while the password-link screen owns the
+ * flow.
  */
 
 "use client";
@@ -16,6 +16,10 @@ import type { Session } from "@supabase/supabase-js";
 
 import { mapSessionToAppAuthState } from "@/lib/auth/normalize-auth";
 import { readAuthPreferenceSnapshot } from "@/lib/auth/preferences";
+import {
+  isPasswordRouteSessionFlowActive,
+  isPasswordRouteSessionFlowMarked,
+} from "@/lib/auth/session-client";
 import type { AppAuthState } from "@/lib/auth/types";
 import {
   getSupabaseBrowserClient,
@@ -31,7 +35,9 @@ interface AuthContextValue {
   overrideProfileAvatarImageUrl: (avatarImageUrl: string | null) => void;
 }
 
-const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextValue | undefined>(
+  undefined,
+);
 const FALLBACK_AUTH_CONTEXT: AuthContextValue = {
   auth: getUnknownAuthState(),
   hydrated: false,
@@ -56,6 +62,21 @@ function getUnknownAuthState(): AppAuthState {
   };
 }
 
+function shouldSuppressPasswordRouteAuthState(auth: AppAuthState): boolean {
+  const passwordFlowIsActive =
+    isPasswordRouteSessionFlowActive() || isPasswordRouteSessionFlowMarked();
+
+  if (!passwordFlowIsActive) {
+    return false;
+  }
+
+  return (
+    auth.status === "authenticated" ||
+    auth.status === "verification_required" ||
+    auth.status === "access_denied"
+  );
+}
+
 export function AuthProvider({
   children,
 }: {
@@ -70,31 +91,34 @@ export function AuthProvider({
   >(undefined);
 
   const applyAuthState = React.useCallback((nextAuth: AppAuthState) => {
+    const effectiveNextAuth = shouldSuppressPasswordRouteAuthState(nextAuth)
+      ? mapClientSession(null)
+      : nextAuth;
     const activeOverride =
-      nextAuth.status === "authenticated"
+      effectiveNextAuth.status === "authenticated"
         ? profileDisplayNameOverrideRef.current
         : null;
     const activeAvatarImageUrlOverride =
-      nextAuth.status === "authenticated"
+      effectiveNextAuth.status === "authenticated"
         ? profileAvatarImageUrlOverrideRef.current
         : undefined;
 
-    if (nextAuth.status !== "authenticated") {
+    if (effectiveNextAuth.status !== "authenticated") {
       profileDisplayNameOverrideRef.current = null;
       profileAvatarImageUrlOverrideRef.current = undefined;
     }
 
     const resolvedAuth =
-      nextAuth.status === "authenticated"
+      effectiveNextAuth.status === "authenticated"
         ? {
-            ...nextAuth,
-            fullName: activeOverride || nextAuth.fullName,
+            ...effectiveNextAuth,
+            fullName: activeOverride || effectiveNextAuth.fullName,
             avatarImageUrl:
               activeAvatarImageUrlOverride !== undefined
                 ? activeAvatarImageUrlOverride
-                : nextAuth.avatarImageUrl,
+                : effectiveNextAuth.avatarImageUrl,
           }
-        : nextAuth;
+        : effectiveNextAuth;
 
     React.startTransition(() => {
       setAuth(resolvedAuth);
@@ -102,27 +126,30 @@ export function AuthProvider({
     });
   }, []);
 
-  const overrideProfileDisplayName = React.useCallback((fullName: string | null) => {
-    const normalizedFullName =
-      typeof fullName === "string" && fullName.trim()
-        ? fullName.trim()
-        : null;
+  const overrideProfileDisplayName = React.useCallback(
+    (fullName: string | null) => {
+      const normalizedFullName =
+        typeof fullName === "string" && fullName.trim()
+          ? fullName.trim()
+          : null;
 
-    profileDisplayNameOverrideRef.current = normalizedFullName;
+      profileDisplayNameOverrideRef.current = normalizedFullName;
 
-    React.startTransition(() => {
-      setAuth((currentAuth) => {
-        if (currentAuth.status !== "authenticated") {
-          return currentAuth;
-        }
+      React.startTransition(() => {
+        setAuth((currentAuth) => {
+          if (currentAuth.status !== "authenticated") {
+            return currentAuth;
+          }
 
-        return {
-          ...currentAuth,
-          fullName: normalizedFullName,
-        };
+          return {
+            ...currentAuth,
+            fullName: normalizedFullName,
+          };
+        });
       });
-    });
-  }, []);
+    },
+    [],
+  );
 
   const overrideProfileAvatarImageUrl = React.useCallback(
     (avatarImageUrl: string | null) => {
@@ -155,6 +182,14 @@ export function AuthProvider({
     }
 
     const refreshPromise = (async () => {
+      if (
+        isPasswordRouteSessionFlowActive() ||
+        isPasswordRouteSessionFlowMarked()
+      ) {
+        applyAuthState(mapClientSession(null));
+        return;
+      }
+
       const { user, error: userError } = await readSupabaseBrowserUser();
 
       if (userError || !user) {

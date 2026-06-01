@@ -16,6 +16,7 @@
 
 "use client";
 
+import Image from "next/image";
 import * as React from "react";
 import { BookOpen, ImageOff } from "lucide-react";
 
@@ -42,6 +43,7 @@ interface VariantStyle {
   textWrapperClassName: string;
   titleClassName: string;
   descriptionClassName: string;
+  imageSizes: string;
 }
 
 const VARIANT_STYLES: Record<BookCoverImageVariant, VariantStyle> = {
@@ -51,6 +53,7 @@ const VARIANT_STYLES: Record<BookCoverImageVariant, VariantStyle> = {
     textWrapperClassName: "hidden",
     titleClassName: "sr-only",
     descriptionClassName: "sr-only",
+    imageSizes: "44px",
   },
   compact: {
     frameClassName: "h-20 w-14 rounded-2xl",
@@ -58,6 +61,7 @@ const VARIANT_STYLES: Record<BookCoverImageVariant, VariantStyle> = {
     textWrapperClassName: "hidden",
     titleClassName: "sr-only",
     descriptionClassName: "sr-only",
+    imageSizes: "56px",
   },
   card: {
     frameClassName: "aspect-[3/4] w-full rounded-3xl",
@@ -66,6 +70,7 @@ const VARIANT_STYLES: Record<BookCoverImageVariant, VariantStyle> = {
     titleClassName: "line-clamp-2 text-sm font-black leading-5 text-foreground",
     descriptionClassName:
       "mt-1 line-clamp-1 text-xs font-medium text-muted-foreground",
+    imageSizes: "(max-width: 768px) 50vw, 25vw",
   },
   hero: {
     frameClassName: "aspect-[3/4] w-full rounded-[1.75rem]",
@@ -75,6 +80,7 @@ const VARIANT_STYLES: Record<BookCoverImageVariant, VariantStyle> = {
       "line-clamp-2 text-base font-black leading-6 text-foreground",
     descriptionClassName:
       "mt-1 line-clamp-1 text-sm font-medium text-muted-foreground",
+    imageSizes: "(max-width: 768px) 70vw, 320px",
   },
 };
 
@@ -146,12 +152,15 @@ export function BookCoverImage({
       )}
     >
       {hasRenderableImage ? (
-        <img
+        <Image
           src={normalizedImageUrl}
           alt={getImageAltText({ coverImageAlt, title })}
+          fill
+          sizes={variantStyle.imageSizes}
           loading={loading}
           decoding="async"
           draggable={false}
+          unoptimized
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
             imageClassName,

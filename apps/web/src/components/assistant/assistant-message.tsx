@@ -16,7 +16,6 @@
 import * as React from "react";
 import { BotMessageSquare, LoaderCircle } from "lucide-react";
 
-import { AssistantCitations } from "@/components/assistant/assistant-citations";
 import type { AssistantMessageItem } from "@/lib/api/assistant";
 
 const STRICT_DOCUMENT_FALLBACK_ANSWER =
@@ -40,18 +39,6 @@ function formatTimestamp(value: string): string {
 
 function isRagMessage(message: AssistantMessageItem): boolean {
   return String(message.intent_profile ?? "").startsWith("rag:");
-}
-
-function hasCitations(message: AssistantMessageItem): boolean {
-  return Array.isArray(message.citations) && message.citations.length > 0;
-}
-
-function shouldShowCitations(message: AssistantMessageItem): boolean {
-  return (
-    message.role === "assistant" &&
-    !Boolean(message.fallback_used) &&
-    hasCitations(message)
-  );
 }
 
 function resolveDocumentFallbackNotice(
@@ -89,7 +76,6 @@ export function AssistantMessage({
 }): React.JSX.Element {
   const isUser = message.role === "user";
   const documentFallbackNotice = resolveDocumentFallbackNotice(message);
-  const renderCitations = shouldShowCitations(message);
 
   if (isUser) {
     return (

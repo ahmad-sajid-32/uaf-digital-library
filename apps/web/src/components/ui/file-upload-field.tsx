@@ -11,7 +11,7 @@
 "use client";
 
 import * as React from "react";
-import { FileImage, FileText, FileUp, UploadCloud, X } from "lucide-react";
+import { FileImage, FileText, UploadCloud, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

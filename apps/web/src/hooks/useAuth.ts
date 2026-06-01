@@ -16,7 +16,13 @@ import {
 import { mapSessionToAppAuthState } from "@/lib/auth/normalize-auth";
 import { getPostLoginRedirectPath } from "@/lib/auth/navigation";
 import { persistAuthPreferences } from "@/lib/auth/preferences";
-import { clearClientAuthTransientState } from "@/lib/auth/session-client";
+import {
+  clearClientAuthTransientState,
+  clearPasswordRouteSessionFlow,
+  getPasswordRouteAccessStorageKey,
+  markPasswordRouteSessionFlow,
+  type PasswordRouteSessionFlow,
+} from "@/lib/auth/session-client";
 import { resolveDisplayTimezone } from "@/lib/auth/timezone";
 import { useAppAuth } from "@/hooks/useAppAuth";
 
@@ -74,6 +80,7 @@ export function useLogin(): {
       const rememberMe = options?.rememberMe ?? false;
       const preferredTimezone = resolveDisplayTimezone();
 
+      clearClientAuthTransientState();
       setHandshakePending(true);
       setError(null);
 
@@ -127,6 +134,7 @@ export function useForgotPassword(): {
   const [success, setSuccess] = React.useState(false);
 
   const submit = React.useCallback(async (email: string) => {
+    clearClientAuthTransientState();
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -183,10 +191,9 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
   const [invalidReason, setInvalidReason] =
     React.useState<PasswordInvalidReason | null>(null);
   const successQueryKey = options.successQueryKey ?? "reset";
-  const accessStorageKey =
-    successQueryKey === "setup"
-      ? "uaf-setup-password-recovery-access"
-      : "uaf-reset-password-recovery-access";
+  const passwordFlow: PasswordRouteSessionFlow =
+    successQueryKey === "setup" ? "setup" : "reset";
+  const accessStorageKey = getPasswordRouteAccessStorageKey(passwordFlow);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -300,9 +307,65 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
       window.history.replaceState(null, "", window.location.pathname);
     };
 
+    const grantRouteAccess = (): void => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      markPasswordRouteSessionFlow(passwordFlow);
+      window.sessionStorage.setItem(accessStorageKey, "granted");
+    };
+
     const revokeRouteAccess = (): void => {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(accessStorageKey);
+      }
+
+      clearPasswordRouteSessionFlow();
+    };
+
+    const hasCurrentSession = async (): Promise<boolean> => {
+      try {
+        const { session } = await getSession();
+
+        return Boolean(session?.user);
+      } catch {
+        return false;
+      }
+    };
+
+    const exchangeRecoveryCodeOrUseExistingSession = async (
+      recoveryCode: string,
+    ): Promise<void> => {
+      try {
+        await exchangePasswordCodeForSession(recoveryCode);
+        return;
+      } catch (exchangeError: unknown) {
+        const sessionAlreadyExists = await hasCurrentSession();
+
+        if (sessionAlreadyExists) {
+          return;
+        }
+
+        throw exchangeError;
+      }
+    };
+
+    const verifyOtpOrUseExistingSession = async (
+      tokenHash: string,
+      type: EmailOtpType,
+    ): Promise<void> => {
+      try {
+        await verifyPasswordOtp(tokenHash, type);
+        return;
+      } catch (verificationError: unknown) {
+        const sessionAlreadyExists = await hasCurrentSession();
+
+        if (sessionAlreadyExists) {
+          return;
+        }
+
+        throw verificationError;
       }
     };
 
@@ -331,16 +394,17 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
 
       try {
         if (otpPayload.tokenHash && otpPayload.type) {
-          await verifyPasswordOtp(otpPayload.tokenHash, otpPayload.type);
+          markPasswordRouteSessionFlow(passwordFlow);
+          await verifyOtpOrUseExistingSession(
+            otpPayload.tokenHash,
+            otpPayload.type,
+          );
 
           if (!isMounted) {
             return;
           }
 
-          if (typeof window !== "undefined") {
-            window.sessionStorage.setItem(accessStorageKey, "granted");
-          }
-
+          grantRouteAccess();
           clearConsumedPasswordLinkParams();
           setAccessType(otpPayload.type === "invite" ? "invite" : "recovery");
           setInvalidLink(false);
@@ -349,16 +413,14 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
         }
 
         if (recoveryCode) {
-          await exchangePasswordCodeForSession(recoveryCode);
+          markPasswordRouteSessionFlow(passwordFlow);
+          await exchangeRecoveryCodeOrUseExistingSession(recoveryCode);
 
           if (!isMounted) {
             return;
           }
 
-          if (typeof window !== "undefined") {
-            window.sessionStorage.setItem(accessStorageKey, "granted");
-          }
-
+          grantRouteAccess();
           clearConsumedPasswordLinkParams();
           setAccessType(resolvedAccessType);
           setInvalidLink(false);
@@ -388,6 +450,7 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
           return;
         }
 
+        markPasswordRouteSessionFlow(passwordFlow);
         setInvalidReason(null);
       } catch {
         if (!isMounted) {
@@ -398,6 +461,13 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
         setInvalidLink(true);
         setInvalidReason("verification_failed");
         revokeRouteAccess();
+
+        try {
+          await signOut();
+          await refreshAuthState();
+        } catch {
+          // The invalid-link UI is already the user-facing recovery path.
+        }
       } finally {
         if (isMounted) {
           setReady(true);
@@ -410,7 +480,7 @@ export function useResetPassword(options: PasswordRouteOptions = {}): {
     return () => {
       isMounted = false;
     };
-  }, [accessStorageKey, successQueryKey]);
+  }, [accessStorageKey, passwordFlow, refreshAuthState, successQueryKey]);
 
   const submit = React.useCallback(
     async (newPassword: string, confirmPassword: string) => {

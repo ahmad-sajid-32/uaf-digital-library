@@ -1,3 +1,4 @@
+// apps/web/src/lib/supabase/client.ts
 import "client-only";
 
 import { createBrowserClient } from "@supabase/ssr";
@@ -31,7 +32,7 @@ export function getSupabaseBrowserClient(): SupabaseClient {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        detectSessionInUrl: false,
       },
     });
   }

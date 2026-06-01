@@ -38,6 +38,10 @@ interface DateRangePickerProps {
   numberOfMonths?: number;
 }
 
+type FlatpickrInputProps = React.ComponentProps<"input"> & {
+  render?: unknown;
+};
+
 function parseDateKey(value: string): Date | null {
   const normalizedValue = value.trim();
 
@@ -143,13 +147,11 @@ export function DateRangePicker({
           onChange={handleChange}
           disabled={disabled}
           render={(props, ref) => {
-            const {
-              render: _render,
-              value: inputValue,
-              ...safeInputProps
-            } = props as React.ComponentProps<"input"> & {
-              render?: unknown;
-            };
+            const safeInputProps = { ...(props as FlatpickrInputProps) };
+            const inputValue = safeInputProps.value;
+
+            delete safeInputProps.render;
+            delete safeInputProps.value;
 
             return (
               <input

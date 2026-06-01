@@ -384,16 +384,14 @@ function PriorityActionPanel(props: {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-bold text-foreground">
-                          {item.title}
-                        </p>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary" />
-                      </div>
+                      <p className="text-sm font-bold text-foreground">
+                        {item.title}
+                      </p>
                       <p className="text-sm leading-6 text-muted-foreground">
                         {item.description}
                       </p>
                     </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 self-center text-muted-foreground transition group-hover:text-primary" />
                   </div>
                 </Link>
               );

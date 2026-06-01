@@ -9,7 +9,7 @@
  */
 
 import * as React from "react";
-import { BookOpenText, Monitor, TriangleAlert, WifiOff } from "lucide-react";
+import { BookOpenText, Monitor, TriangleAlert } from "lucide-react";
 
 export function LibraryRuntimeErrorIllustration(): React.JSX.Element {
   return (

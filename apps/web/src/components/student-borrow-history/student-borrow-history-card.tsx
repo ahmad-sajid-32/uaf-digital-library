@@ -1,7 +1,5 @@
 "use client";
 
-import { CheckCircle2, Clock3 } from "lucide-react";
-
 import { BookStatusBadge } from "@/components/books/book-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
