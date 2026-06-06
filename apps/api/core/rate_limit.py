@@ -46,6 +46,13 @@ RateLimitTier = Literal[
     "document_finalize",
     "document_read",
     "document_delete",
+    "ebook_staff_read",
+    "ebook_student_read",
+    "ebook_upload",
+    "ebook_finalize",
+    "ebook_access_url",
+    "ebook_mutation",
+    "ebook_cover",
 ]
 
 
@@ -192,6 +199,41 @@ def get_rate_limit_policy(tier: RateLimitTier) -> RateLimitPolicy:
             tier="document_delete",
             max_requests=settings.document_delete_rate_limit_max_requests,
             window_seconds=settings.document_delete_rate_limit_window_seconds,
+        ),
+        "ebook_staff_read": RateLimitPolicy(
+            tier="ebook_staff_read",
+            max_requests=settings.ebook_read_rate_limit_max_requests,
+            window_seconds=settings.ebook_read_rate_limit_window_seconds,
+        ),
+        "ebook_student_read": RateLimitPolicy(
+            tier="ebook_student_read",
+            max_requests=settings.ebook_read_rate_limit_max_requests,
+            window_seconds=settings.ebook_read_rate_limit_window_seconds,
+        ),
+        "ebook_upload": RateLimitPolicy(
+            tier="ebook_upload",
+            max_requests=settings.ebook_upload_rate_limit_max_requests,
+            window_seconds=settings.ebook_upload_rate_limit_window_seconds,
+        ),
+        "ebook_finalize": RateLimitPolicy(
+            tier="ebook_finalize",
+            max_requests=settings.ebook_finalize_rate_limit_max_requests,
+            window_seconds=settings.ebook_finalize_rate_limit_window_seconds,
+        ),
+        "ebook_access_url": RateLimitPolicy(
+            tier="ebook_access_url",
+            max_requests=settings.ebook_read_rate_limit_max_requests,
+            window_seconds=settings.ebook_read_rate_limit_window_seconds,
+        ),
+        "ebook_mutation": RateLimitPolicy(
+            tier="ebook_mutation",
+            max_requests=settings.ebook_mutation_rate_limit_max_requests,
+            window_seconds=settings.ebook_mutation_rate_limit_window_seconds,
+        ),
+        "ebook_cover": RateLimitPolicy(
+            tier="ebook_cover",
+            max_requests=settings.ebook_cover_rate_limit_max_requests,
+            window_seconds=settings.ebook_cover_rate_limit_window_seconds,
         ),
     }
 

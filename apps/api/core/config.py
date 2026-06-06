@@ -151,6 +151,21 @@ class Settings:
     document_upload_max_file_size_bytes: int
     document_signed_read_url_ttl_seconds: int
     document_upload_stale_after_seconds: int
+    supabase_storage_bucket_ebooks: str
+    supabase_storage_bucket_ebook_covers: str
+    ebook_upload_max_file_size_bytes: int
+    ebook_cover_max_file_size_bytes: int
+    ebook_signed_access_url_ttl_seconds: int
+    ebook_upload_rate_limit_window_seconds: int
+    ebook_upload_rate_limit_max_requests: int
+    ebook_finalize_rate_limit_window_seconds: int
+    ebook_finalize_rate_limit_max_requests: int
+    ebook_read_rate_limit_window_seconds: int
+    ebook_read_rate_limit_max_requests: int
+    ebook_mutation_rate_limit_window_seconds: int
+    ebook_mutation_rate_limit_max_requests: int
+    ebook_cover_rate_limit_window_seconds: int
+    ebook_cover_rate_limit_max_requests: int
     supabase_storage_bucket_profile_avatars: str
     profile_avatar_max_file_size_bytes: int
     profile_avatar_signed_url_ttl_seconds: int
@@ -539,6 +554,51 @@ def load_settings() -> Settings:
         ),
         document_upload_stale_after_seconds=int(
             _get_env("DOCUMENT_UPLOAD_STALE_AFTER_SECONDS", "86400")
+        ),
+        supabase_storage_bucket_ebooks=_get_env(
+            "SUPABASE_STORAGE_BUCKET_EBOOKS", "ebooks-private"
+        ),
+        supabase_storage_bucket_ebook_covers=_get_env(
+            "SUPABASE_STORAGE_BUCKET_EBOOK_COVERS", "ebook-covers"
+        ),
+        ebook_upload_max_file_size_bytes=int(
+            _get_env("EBOOK_UPLOAD_MAX_FILE_SIZE_BYTES", "52428800")
+        ),
+        ebook_cover_max_file_size_bytes=int(
+            _get_env("EBOOK_COVER_MAX_FILE_SIZE_BYTES", "2097152")
+        ),
+        ebook_signed_access_url_ttl_seconds=int(
+            _get_env("EBOOK_SIGNED_ACCESS_URL_TTL_SECONDS", "300")
+        ),
+        ebook_upload_rate_limit_window_seconds=int(
+            _get_env("EBOOK_UPLOAD_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        ebook_upload_rate_limit_max_requests=int(
+            _get_env("EBOOK_UPLOAD_RATE_LIMIT_MAX_REQUESTS", "20")
+        ),
+        ebook_finalize_rate_limit_window_seconds=int(
+            _get_env("EBOOK_FINALIZE_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        ebook_finalize_rate_limit_max_requests=int(
+            _get_env("EBOOK_FINALIZE_RATE_LIMIT_MAX_REQUESTS", "15")
+        ),
+        ebook_read_rate_limit_window_seconds=int(
+            _get_env("EBOOK_READ_RATE_LIMIT_WINDOW_SECONDS", "60")
+        ),
+        ebook_read_rate_limit_max_requests=int(
+            _get_env("EBOOK_READ_RATE_LIMIT_MAX_REQUESTS", "60")
+        ),
+        ebook_mutation_rate_limit_window_seconds=int(
+            _get_env("EBOOK_MUTATION_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        ebook_mutation_rate_limit_max_requests=int(
+            _get_env("EBOOK_MUTATION_RATE_LIMIT_MAX_REQUESTS", "20")
+        ),
+        ebook_cover_rate_limit_window_seconds=int(
+            _get_env("EBOOK_COVER_RATE_LIMIT_WINDOW_SECONDS", "300")
+        ),
+        ebook_cover_rate_limit_max_requests=int(
+            _get_env("EBOOK_COVER_RATE_LIMIT_MAX_REQUESTS", "15")
         ),
         supabase_storage_bucket_profile_avatars=_get_env(
             "SUPABASE_STORAGE_BUCKET_PROFILE_AVATARS",

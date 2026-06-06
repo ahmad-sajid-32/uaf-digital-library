@@ -77,6 +77,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
+      id: "ebooks",
+      label: "E-Books",
+      href: "/admin/ebooks",
+      icon: "book-open",
+      match: "startsWith",
+    },
+    {
       id: "result",
       label: "Result",
       href: "/admin/result",
@@ -128,6 +135,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       match: "startsWith",
     },
     {
+      id: "ebooks",
+      label: "E-Books",
+      href: "/librarian/ebooks",
+      icon: "book-open",
+      match: "startsWith",
+    },
+    {
       id: "result",
       label: "Result",
       href: "/librarian/result",
@@ -155,6 +169,13 @@ const ROLE_NAV_ITEMS: Record<AppRole, AppShellNavItem[]> = {
       label: "Catalog",
       href: "/student/catalog",
       icon: "library-big",
+      match: "startsWith",
+    },
+    {
+      id: "ebooks",
+      label: "E-Books",
+      href: "/student/ebooks",
+      icon: "book-open",
       match: "startsWith",
     },
     {

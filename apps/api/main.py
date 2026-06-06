@@ -55,6 +55,8 @@ from modules.results.routes import (
     router as results_router,
 )
 from modules.documents.routes import router as documents_router
+from modules.ebooks.routes import admin_router as admin_ebooks_router
+from modules.ebooks.routes import router as ebooks_router
 from modules.ai.routes import assistant_router
 from modules.ai.routes import router as ai_router
 
@@ -150,6 +152,8 @@ app.include_router(librarian_metrics_router)
 app.include_router(results_router)
 app.include_router(public_results_router)
 app.include_router(documents_router)
+app.include_router(ebooks_router)
+app.include_router(admin_ebooks_router)
 app.include_router(ai_router)
 app.include_router(assistant_router)
 

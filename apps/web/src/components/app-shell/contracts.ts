@@ -42,6 +42,7 @@ export type AppShellIconName =
   | "graduation-cap"
   | "scroll-text"
   | "book-copy"
+  | "book-open"
   | "library-big"
   | "credit-card"
   | "user-circle-2";

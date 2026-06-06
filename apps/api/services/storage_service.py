@@ -94,7 +94,7 @@ class StorageService:
 
         if response.is_error:
             logger.error(
-                "DOCUMENTS: signed upload url request failed",
+                "STORAGE: signed upload url request failed",
                 extra={
                     "bucket_name": bucket_name,
                     "storage_object_path": object_path,
@@ -162,7 +162,7 @@ class StorageService:
 
         if response.is_error:
             logger.error(
-                "DOCUMENTS: signed read url request failed",
+                "STORAGE: signed read url request failed",
                 extra={
                     "bucket_name": bucket_name,
                     "storage_object_path": object_path,
@@ -249,7 +249,7 @@ class StorageService:
 
         if response.is_error:
             logger.error(
-                "DOCUMENTS: storage download failed",
+                "STORAGE: storage download failed",
                 extra={
                     "bucket_name": bucket_name,
                     "storage_object_path": object_path,
@@ -294,7 +294,7 @@ class StorageService:
 
         if response.is_error:
             logger.error(
-                "DOCUMENTS: storage info failed",
+                "STORAGE: storage info failed",
                 extra={
                     "bucket_name": bucket_name,
                     "storage_object_path": object_path,
@@ -323,7 +323,7 @@ class StorageService:
 
         if response.status_code == 404:
             logger.warning(
-                "DOCUMENTS: storage object already missing during delete",
+                "STORAGE: storage object already missing during delete",
                 extra={
                     "bucket_name": bucket_name,
                     "storage_object_path": object_path,
