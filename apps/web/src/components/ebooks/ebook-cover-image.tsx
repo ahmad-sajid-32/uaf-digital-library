@@ -1,9 +1,26 @@
-import Image from "next/image";
+import {
+  BookCoverImage,
+  type BookCoverImageVariant,
+} from "@/components/books/book-cover-image";
 import type { EBook } from "@/lib/ebooks";
 
-export function EBookCoverImage({ ebook }: { ebook: EBook }) {
-  if (ebook.cover_image_url) {
-    return <Image className="h-28 w-20 rounded-lg object-cover" src={ebook.cover_image_url} alt={ebook.cover_image_alt || `Cover for ${ebook.title}`} width={80} height={112} unoptimized />;
-  }
-  return <div className="flex h-28 w-20 items-center justify-center rounded-lg bg-muted px-2 text-center text-xs text-muted-foreground">No cover</div>;
+export function EBookCoverImage({
+  ebook,
+  variant = "thumbnail",
+  className,
+}: {
+  ebook: EBook;
+  variant?: BookCoverImageVariant;
+  className?: string;
+}) {
+  return (
+    <BookCoverImage
+      title={ebook.title}
+      author={ebook.authors}
+      coverImageUrl={ebook.cover_image_url}
+      coverImageAlt={ebook.cover_image_alt}
+      variant={variant}
+      className={className}
+    />
+  );
 }

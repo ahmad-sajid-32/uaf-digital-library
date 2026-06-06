@@ -284,7 +284,7 @@ export function BookCreateDialog({
               </div>
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,0.72fr)_minmax(320px,0.28fr)]">
+            <div className="grid gap-4">
               <BookCoverUploadField
                 id="create-book-cover"
                 title={form.title}

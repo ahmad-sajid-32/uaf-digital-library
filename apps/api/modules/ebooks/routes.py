@@ -7,11 +7,13 @@ from uuid import UUID
 from fastapi import APIRouter, Body, File, Form, HTTPException, Query, Request, UploadFile, status
 
 from core.rate_limit import RateLimitTier, enforce_rate_limit
+from core.logging import get_logger
 from modules.ebooks.schemas import ApiResponse, EBookAccessRequest, EBookUpdateRequest, EBookUploadRequest
 from modules.ebooks.service import EBooksService
 
 router = APIRouter(prefix="/api/ebooks", tags=["E-Books"])
 admin_router = APIRouter(prefix="/api/admin/ebooks", tags=["E-Books Management"])
+logger = get_logger(__name__)
 
 
 def _user_id(request: Request) -> str:
@@ -34,6 +36,8 @@ def _status(message: str) -> int:
         return status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
     if "invalid" in message.lower() or "unsupported" in message.lower():
         return status.HTTP_422_UNPROCESSABLE_ENTITY
+    if "Stored object violates upload policy" in message:
+        return status.HTTP_400_BAD_REQUEST
     if "Storage request failed" in message:
         return status.HTTP_502_BAD_GATEWAY
     return status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -46,6 +50,17 @@ async def _run(request: Request, tier: RateLimitTier, operation: Callable[[], Aw
         data = await operation()
     except RuntimeError as exc:
         code = _status(str(exc))
+        logger.error(
+            "EBOOKS: request failed",
+            extra={
+                "request_id": getattr(request.state, "request_id", None),
+                "route": request.url.path,
+                "user_id": user_id,
+                "rate_limit_tier": tier,
+                "status_code": code,
+                "error": str(exc),
+            },
+        )
         raise HTTPException(code, str(exc) if code < 500 else "Internal Server Error") from exc
     return ApiResponse(status=200, message=message, data=data or {}, timestamp_ms=int(time.time() * 1000))
 
@@ -95,7 +110,7 @@ async def archive(request: Request, ebook_id: UUID) -> ApiResponse:
 @admin_router.delete("/{ebook_id}", response_model=ApiResponse)
 async def delete(request: Request, ebook_id: UUID) -> ApiResponse:
     user_id = _user_id(request)
-    return await _run(request, "ebook_mutation", lambda: EBooksService.delete_draft(user_id, ebook_id), "Draft E-Book deleted successfully")
+    return await _run(request, "ebook_mutation", lambda: EBooksService.delete(user_id, ebook_id), "E-Book deleted successfully")
 
 
 @admin_router.post("/{ebook_id}/cover", response_model=ApiResponse)
@@ -106,8 +121,22 @@ async def set_cover(
     alt_text: str | None = Form(default=None),
 ) -> ApiResponse:
     user_id = _user_id(request)
-    content = await file.read()
-    return await _run(request, "ebook_cover", lambda: EBooksService.set_cover(user_id, ebook_id, content, file.content_type or "", alt_text), "E-Book cover updated successfully")
+
+    async def operation() -> object:
+        content = await file.read()
+        mime_type = EBooksService.resolve_cover_mime_type(
+            file.filename or "",
+            file.content_type or "",
+        )
+        return await EBooksService.set_cover(
+            user_id,
+            ebook_id,
+            content,
+            mime_type,
+            alt_text,
+        )
+
+    return await _run(request, "ebook_cover", operation, "E-Book cover updated successfully")
 
 
 @admin_router.delete("/{ebook_id}/cover", response_model=ApiResponse)

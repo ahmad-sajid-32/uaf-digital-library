@@ -46,6 +46,16 @@ def test_uploaded_object_must_match_upload_intent() -> None:
     assert result == {"mime_type": "application/pdf", "file_size_bytes": len(content)}
 
 
+def test_uploaded_object_accepts_supabase_content_type_field() -> None:
+    content = b"%PDF-1.7\ncontent"
+    result = EBooksService.validate_uploaded_object(
+        {"file_format": "pdf", "file_size_bytes": len(content)},
+        {"size": len(content), "content_type": "application/pdf", "metadata": {}},
+        content,
+    )
+    assert result["mime_type"] == "application/pdf"
+
+
 def test_uploaded_object_rejects_metadata_mismatch() -> None:
     content = b"%PDF-1.7\ncontent"
     with pytest.raises(RuntimeError, match="Stored object violates upload policy"):
@@ -54,3 +64,29 @@ def test_uploaded_object_rejects_metadata_mismatch() -> None:
             {"size": len(content) + 1, "mimetype": "application/pdf"},
             content,
         )
+
+
+@pytest.mark.parametrize(
+    ("mime_type", "content"),
+    [
+        ("image/jpeg", b"\xff\xd8\xffdata"),
+        ("image/png", b"\x89PNG\r\n\x1a\ndata"),
+        ("image/webp", b"RIFF\x04\x00\x00\x00WEBP"),
+    ],
+)
+def test_accepts_valid_cover_signatures(mime_type: str, content: bytes) -> None:
+    EBooksService.validate_cover_bytes(mime_type, content)
+
+
+def test_rejects_spoofed_cover_content() -> None:
+    with pytest.raises(RuntimeError, match="Invalid cover image content"):
+        EBooksService.validate_cover_bytes("image/png", b"not-an-image")
+
+
+def test_cover_mime_falls_back_to_valid_extension() -> None:
+    assert EBooksService.resolve_cover_mime_type("cover.webp", "") == "image/webp"
+
+
+def test_cover_mime_rejects_extension_mismatch() -> None:
+    with pytest.raises(RuntimeError, match="Invalid cover image type"):
+        EBooksService.resolve_cover_mime_type("cover.png", "image/jpeg")

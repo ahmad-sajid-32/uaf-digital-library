@@ -24,6 +24,12 @@ class EBooksService:
         "image/png": "png",
         "image/webp": "webp",
     }
+    COVER_MIME_BY_EXTENSION = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
 
     @staticmethod
     def _decode(value: Any) -> Any:
@@ -168,8 +174,10 @@ class EBooksService:
     def _storage_mime(object_info: dict[str, Any]) -> str | None:
         metadata = object_info.get("metadata")
         for candidate in (
+            object_info.get("content_type"),
             object_info.get("mimetype"),
             object_info.get("mime_type"),
+            metadata.get("content_type") if isinstance(metadata, dict) else None,
             metadata.get("mimetype") if isinstance(metadata, dict) else None,
             metadata.get("mimeType") if isinstance(metadata, dict) else None,
         ):
@@ -218,12 +226,17 @@ class EBooksService:
         ))
 
     @classmethod
-    async def delete_draft(cls, user_id: str, ebook_id: UUID) -> None:
+    async def delete(cls, user_id: str, ebook_id: UUID) -> None:
         storage = await cls._rpc(
-            user_id, "select library.delete_ebook_draft($1::uuid, $2::uuid)", ebook_id
+            user_id, "select library.delete_ebook($1::uuid, $2::uuid)", ebook_id
         )
         if storage.get("storage_object_path"):
             await StorageService.delete_object(storage["bucket_name"], storage["storage_object_path"])
+        if storage.get("cover_image_path"):
+            await StorageService.delete_object(
+                settings.supabase_storage_bucket_ebook_covers,
+                storage["cover_image_path"],
+            )
 
     @classmethod
     async def access_url(cls, user_id: str, ebook_id: UUID, event_type: str) -> dict[str, Any]:
@@ -263,6 +276,7 @@ class EBooksService:
             raise RuntimeError("Invalid cover image type")
         if not content or len(content) > settings.ebook_cover_max_file_size_bytes:
             raise RuntimeError("Invalid cover image size")
+        cls.validate_cover_bytes(mime_type, content)
         current = await cls.get_staff(user_id, ebook_id)
         previous_path = current.get("cover_image_path")
         path = f"ebooks/{ebook_id}/cover.{extension}"
@@ -278,6 +292,29 @@ class EBooksService:
         if previous_path and previous_path != path:
             await StorageService.delete_object(settings.supabase_storage_bucket_ebook_covers, previous_path)
         return result
+
+    @classmethod
+    def resolve_cover_mime_type(cls, filename: str, declared_mime_type: str) -> str:
+        normalized = declared_mime_type.split(";", 1)[0].strip().lower()
+        expected = cls.COVER_MIME_BY_EXTENSION.get(Path(filename).suffix.lower())
+        if not expected or (normalized and normalized not in {expected, "application/octet-stream"}):
+            raise RuntimeError("Invalid cover image type")
+        return expected
+
+    @staticmethod
+    def validate_cover_bytes(mime_type: str, content: bytes) -> None:
+        valid = (
+            (mime_type == "image/jpeg" and content.startswith(b"\xff\xd8\xff"))
+            or (mime_type == "image/png" and content.startswith(b"\x89PNG\r\n\x1a\n"))
+            or (
+                mime_type == "image/webp"
+                and len(content) >= 12
+                and content.startswith(b"RIFF")
+                and content[8:12] == b"WEBP"
+            )
+        )
+        if not valid:
+            raise RuntimeError("Invalid cover image content")
 
     @classmethod
     async def clear_cover(cls, user_id: str, ebook_id: UUID) -> None:

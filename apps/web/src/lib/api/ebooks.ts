@@ -7,7 +7,8 @@ import type { EBook, EBookAccessEventType, EBookAccessScope, EBookCategory, EBoo
 export interface PageData<T> { items: T[]; total: number; limit: number; offset: number }
 export interface Envelope<T> { status: number; message: string; data: T; timestamp_ms: number }
 export interface UploadInput {
-  title: string; authors: string; category: EBookCategory; file: File; fileFormat: EBookFormat;
+  title: string; authors: string; description?: string | null; category: EBookCategory; file: File; fileFormat: EBookFormat;
+  coverFile?: File | null; coverAltText?: string | null;
 }
 export interface UpdateInput {
   title: string; subtitle?: string | null; authors: string; description?: string | null;
@@ -66,6 +67,7 @@ export const accessEBook = (id: string, type: EBookAccessEventType, staff = fals
   );
 
 export async function uploadEBook(input: UploadInput): Promise<EBook> {
+  const mimeType = input.fileFormat === "epub" ? "application/epub+zip" : "application/pdf";
   const intent = await api<{
     ebook_id: string; bucket_name: string; storage_object_path: string; upload_token: string | null;
   }>("/api/admin/ebooks/upload-url", {
@@ -73,22 +75,47 @@ export async function uploadEBook(input: UploadInput): Promise<EBook> {
     body: JSON.stringify({
       title: input.title, authors: input.authors, category: input.category,
       filename: input.file.name, file_format: input.fileFormat,
-      mime_type: input.file.type, file_size_bytes: input.file.size,
+      mime_type: mimeType, file_size_bytes: input.file.size,
     }),
   });
   if (!intent.upload_token) throw new Error("Upload token is missing.");
   const { error } = await getSupabaseBrowserClient().storage
     .from(intent.bucket_name)
     .uploadToSignedUrl(intent.storage_object_path, intent.upload_token, await input.file.arrayBuffer(), {
-      contentType: input.file.type,
+      contentType: mimeType,
     });
   if (error) throw new Error(error.message);
-  return finalizeEBook(intent.ebook_id);
+  let ebook = await finalizeEBook(intent.ebook_id);
+  if (input.description?.trim()) {
+    ebook = await updateEBook(intent.ebook_id, {
+      title: ebook.title,
+      subtitle: ebook.subtitle,
+      authors: ebook.authors,
+      description: input.description.trim(),
+      isbn: ebook.isbn,
+      publisher: ebook.publisher,
+      publication_year: ebook.publication_year,
+      edition: ebook.edition,
+      language: ebook.language,
+      category: ebook.category,
+      keywords: ebook.keywords,
+      linked_book_id: ebook.linked_book_id,
+      access_scope: ebook.access_scope,
+      allow_preview: ebook.allow_preview,
+      allow_download: ebook.allow_download,
+    });
+  }
+  if (input.coverFile) {
+    return setEBookCover(intent.ebook_id, input.coverFile, input.coverAltText || undefined);
+  }
+  return ebook;
 }
 
 export async function setEBookCover(id: string, file: File, altText?: string): Promise<EBook> {
+  const extension = file.name.split(".").at(-1)?.toLowerCase();
+  const mimeType = extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg";
   const body = new FormData();
-  body.set("file", file);
+  body.set("file", new File([file], file.name, { type: mimeType }));
   if (altText) body.set("alt_text", altText);
   return api<EBook>(`/api/admin/ebooks/${id}/cover`, { method: "POST", body });
 }
